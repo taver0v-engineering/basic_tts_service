@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Read Aloud</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14141a;
+    --panel: #1c1c24;
+    --panel-edge: #2a2a35;
+    --ink: #e8e6e1;
+    --ink-dim: #8b8a94;
+    --signal: #e8a33d;
+    --signal-dim: #6b5327;
+    --danger: #d9634f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(232,163,61,0.06), transparent 40%),
+      var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  .console {
+    width: 100%;
+    max-width: 680px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  .console-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .console-header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0;
+  }
+
+  .console-header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.05em;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 200px;
+    background: #101015;
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 16px;
+    resize: vertical;
+  }
+
+  textarea:focus {
+    outline: none;
+    border-color: var(--signal-dim);
+  }
+
+  textarea::placeholder { color: var(--ink-dim); }
+
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 6px;
+  }
+
+  .meta-row.warn { color: var(--danger); }
+
+  /* --- voice / language pickers --- */
+  .picker-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .picker {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .picker label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  select {
+    background: #101015;
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  select:focus { outline: none; border-color: var(--signal-dim); }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 18px;
+  }
+
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 8px;
+    border: 1px solid var(--panel-edge);
+    background: transparent;
+    color: var(--ink);
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    white-space: nowrap;
+  }
+
+  button:hover:not(:disabled) {
+    border-color: var(--signal);
+    color: var(--signal);
+  }
+
+  button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--signal);
+    color: #14141a;
+    border-color: var(--signal);
+    flex: 1;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #f0b25c;
+    color: #14141a;
+  }
+
+  .btn-icon {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .btn-stop:hover:not(:disabled) {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .transport {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--panel-edge);
+  }
+
+  .transport-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 22px;
+    width: 42px;
+    flex-shrink: 0;
+  }
+
+  .bars span {
+    display: block;
+    width: 4px;
+    background: var(--signal-dim);
+    border-radius: 2px;
+    height: 20%;
+    transition: background 0.2s ease;
+  }
+
+  .bars.active span {
+    background: var(--signal);
+    animation: bounce 0.9s ease-in-out infinite;
+  }
+
+  .bars span:nth-child(1) { animation-delay: 0s; }
+  .bars span:nth-child(2) { animation-delay: 0.15s; }
+  .bars span:nth-child(3) { animation-delay: 0.3s; }
+  .bars span:nth-child(4) { animation-delay: 0.1s; }
+  .bars span:nth-child(5) { animation-delay: 0.25s; }
+
+  @keyframes bounce {
+    0%, 100% { height: 20%; }
+    50% { height: 100%; }
+  }
+
+  .status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    flex: 1;
+  }
+
+  .status.error { color: var(--danger); }
+
+  /* --- seek bar --- */
+  .seek-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .time-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    width: 42px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--panel-edge);
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--signal);
+    cursor: pointer;
+    border: none;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--signal);
+    cursor: pointer;
+    border: none;
+  }
+
+  input[type="range"]:disabled::-webkit-slider-thumb { background: var(--panel-edge); }
+
+  .skip-row {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .settings {
+    margin-top: 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+  }
+
+  .settings input[type="text"] {
+    width: 100%;
+    margin-top: 6px;
+    background: #101015;
+    border: 1px solid var(--panel-edge);
+    border-radius: 6px;
+    color: var(--ink-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+
+  .settings input[type="text"]:focus {
+    outline: none;
+    border-color: var(--signal-dim);
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<div class="console">
+  <div class="console-header">
+    <h1>Read Aloud</h1>
+    <span class="tag">// text &rarr; speech</span>
+  </div>
+
+  <textarea id="articleText" placeholder="Paste an article here... (up to about 10 minutes of speech)"></textarea>
+  <div class="meta-row">
+    <span id="charCount">0 characters</span>
+    <span>max ~10 minutes of audio per conversion</span>
+  </div>
+
+  <div class="picker-row">
+    <div class="picker">
+      <label for="languageSelect">Language</label>
+      <select id="languageSelect">
+        <option value="auto">Auto (detect from text)</option>
+      </select>
+    </div>
+    <div class="picker">
+      <label for="voiceSelect">Voice</label>
+      <select id="voiceSelect">
+        <option value="auto">Auto</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="convertBtn" class="btn-primary">Convert &amp; Play</button>
+  </div>
+
+  <div class="transport">
+    <div class="transport-top">
+      <div id="bars" class="bars">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <span id="status" class="status">Idle — paste text and press Convert &amp; Play</span>
+      <button id="pauseBtn" disabled>Pause</button>
+      <button id="stopBtn" class="btn-stop" disabled>Stop</button>
+    </div>
+
+    <div class="seek-row">
+      <span id="elapsedLabel" class="time-label">0:00</span>
+      <input id="seekBar" type="range" min="0" max="100" value="0" step="1" disabled>
+      <span id="totalLabel" class="time-label">0:00</span>
+    </div>
+
+    <div class="skip-row">
+      <button id="restartBtn" class="btn-icon" disabled title="Restart from the beginning">&#8634; Restart</button>
+      <button id="back30Btn" class="btn-icon" disabled>&laquo; 30s</button>
+      <button id="back10Btn" class="btn-icon" disabled>&laquo; 10s</button>
+      <button id="fwd10Btn" class="btn-icon" disabled>10s &raquo;</button>
+      <button id="fwd30Btn" class="btn-icon" disabled>30s &raquo;</button>
+    </div>
+  </div>
+
+  <div class="settings">
+    Backend URL
+    <input id="backendUrl" type="text" value="http://localhost:8000">
+  </div>
+</div>
+
+<script>
+  const articleText = document.getElementById('articleText');
+  const charCount = document.getElementById('charCount');
+  const languageSelect = document.getElementById('languageSelect');
+  const voiceSelect = document.getElementById('voiceSelect');
+  const convertBtn = document.getElementById('convertBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const statusEl = document.getElementById('status');
+  const bars = document.getElementById('bars');
+  const backendUrlInput = document.getElementById('backendUrl');
+
+  const seekBar = document.getElementById('seekBar');
+  const elapsedLabel = document.getElementById('elapsedLabel');
+  const totalLabel = document.getElementById('totalLabel');
+  const restartBtn = document.getElementById('restartBtn');
+  const back30Btn = document.getElementById('back30Btn');
+  const back10Btn = document.getElementById('back10Btn');
+  const fwd10Btn = document.getElementById('fwd10Btn');
+  const fwd30Btn = document.getElementById('fwd30Btn');
+
+  let audio = null;
+  let objectUrl = null;
+  let allVoices = [];
+  let isSeeking = false;
+
+  function backendBase() {
+    return backendUrlInput.value.replace(/\/+$/, '');
+  }
+
+  articleText.addEventListener('input', () => {
+    charCount.textContent = `${articleText.value.length} characters`;
+  });
+
+  function setStatus(message, isError = false) {
+    statusEl.textContent = message;
+    statusEl.classList.toggle('error', isError);
+  }
+
+  function formatTime(seconds) {
+    if (!isFinite(seconds) || seconds < 0) seconds = 0;
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // --- Load available voices/languages from the backend ---------------------
+
+  async function loadVoices() {
+    try {
+      const res = await fetch(`${backendBase()}/voices`);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      allVoices = await res.json();
+
+      const languages = [...new Map(allVoices.map(v => [v.language, v.language_label])).entries()];
+      languageSelect.innerHTML = '<option value="auto">Auto (detect from text)</option>' +
+        languages.map(([code, label]) => `<option value="${code}">${label}</option>`).join('');
+
+      updateVoiceOptions();
+    } catch (err) {
+      setStatus(`Could not load voice list from backend (${err.message}). Check the Backend URL below.`, true);
+    }
+  }
+
+  function updateVoiceOptions() {
+    const lang = languageSelect.value;
+    const matching = lang === 'auto' ? allVoices : allVoices.filter(v => v.language === lang);
+    voiceSelect.innerHTML = (lang === 'auto' ? '<option value="auto">Auto</option>' : '') +
+      matching.map(v => `<option value="${v.id}">${v.label}</option>`).join('');
+  }
+
+  languageSelect.addEventListener('change', updateVoiceOptions);
+
+  // --- Playback state ---------------------------------------------------------
+
+  function resetPlayback() {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+    }
+    audio = null;
+    bars.classList.remove('active');
+    [pauseBtn, stopBtn, restartBtn, back30Btn, back10Btn, fwd10Btn, fwd30Btn].forEach(b => b.disabled = true);
+    seekBar.disabled = true;
+    seekBar.value = 0;
+    elapsedLabel.textContent = '0:00';
+    totalLabel.textContent = '0:00';
+    pauseBtn.textContent = 'Pause';
+  }
+
+  async function convertAndPlay() {
+    const text = articleText.value.trim();
+    if (!text) {
+      setStatus('Paste some text first.', true);
+      return;
+    }
+
+    resetPlayback();
+    convertBtn.disabled = true;
+    setStatus('Converting to speech...');
+
+    const voiceId = voiceSelect.value || 'auto';
+
+    try {
+      const response = await fetch(`${backendBase()}/synthesize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice_id: voiceId }),
+      });
+
+      if (!response.ok) {
+        // Friendly handling: the backend sends a plain-language `detail`
+        // message for both the too-long case (413) and other errors.
+        const problem = await response.json().catch(() => ({}));
+        throw new Error(problem.detail || `Server returned ${response.status}`);
+      }
+
+      const voiceLabel = response.headers.get('X-Voice-Label') || 'default voice';
+      const detectedLang = response.headers.get('X-Detected-Language');
+      const durationHeader = parseFloat(response.headers.get('X-Audio-Duration-Seconds') || '0');
+
+      const blob = await response.blob();
+      objectUrl = URL.createObjectURL(blob);
+      audio = new Audio(objectUrl);
+
+      audio.addEventListener('loadedmetadata', () => {
+        const total = isFinite(audio.duration) ? audio.duration : durationHeader;
+        seekBar.max = Math.floor(total);
+        totalLabel.textContent = formatTime(total);
+        seekBar.disabled = false;
+      });
+
+      audio.addEventListener('timeupdate', () => {
+        if (isSeeking) return;
+        seekBar.value = Math.floor(audio.currentTime);
+        elapsedLabel.textContent = formatTime(audio.currentTime);
+      });
+
+      audio.addEventListener('play', () => {
+        bars.classList.add('active');
+        pauseBtn.textContent = 'Pause';
+      });
+      audio.addEventListener('pause', () => bars.classList.remove('active'));
+      audio.addEventListener('ended', () => {
+        setStatus('Finished. Paste new text or press Convert & Play again.');
+        bars.classList.remove('active');
+        pauseBtn.textContent = 'Pause';
+      });
+
+      [pauseBtn, stopBtn, restartBtn, back30Btn, back10Btn, fwd10Btn, fwd30Btn].forEach(b => b.disabled = false);
+
+      const langNote = detectedLang ? ` (detected: ${detectedLang})` : '';
+      setStatus(`Playing — ${voiceLabel}${langNote}`);
+      await audio.play();
+    } catch (err) {
+      setStatus(err.message, true);
+    } finally {
+      convertBtn.disabled = false;
+    }
+  }
+
+  function togglePause() {
+    if (!audio) return;
+    if (audio.paused) {
+      audio.play();
+      pauseBtn.textContent = 'Pause';
+    } else {
+      audio.pause();
+      pauseBtn.textContent = 'Resume';
+      setStatus('Paused.');
+    }
+  }
+
+  function stopPlayback() {
+    setStatus('Stopped.');
+    resetPlayback();
+  }
+
+  function seekBy(deltaSeconds) {
+    if (!audio) return;
+    const target = Math.min(Math.max(audio.currentTime + deltaSeconds, 0), audio.duration || 0);
+    audio.currentTime = target;
+    seekBar.value = Math.floor(target);
+    elapsedLabel.textContent = formatTime(target);
+  }
+
+  function restart() {
+    if (!audio) return;
+    audio.currentTime = 0;
+    seekBar.value = 0;
+    elapsedLabel.textContent = '0:00';
+    audio.play();
+  }
+
+  // Dragging the seek bar: pause updates from timeupdate while the user drags,
+  // then jump playback to the chosen point on release.
+  seekBar.addEventListener('input', () => {
+    isSeeking = true;
+    elapsedLabel.textContent = formatTime(parseFloat(seekBar.value));
+  });
+  seekBar.addEventListener('change', () => {
+    if (audio) audio.currentTime = parseFloat(seekBar.value);
+    isSeeking = false;
+  });
+
+  convertBtn.addEventListener('click', convertAndPlay);
+  pauseBtn.addEventListener('click', togglePause);
+  stopBtn.addEventListener('click', stopPlayback);
+  restartBtn.addEventListener('click', restart);
+  back30Btn.addEventListener('click', () => seekBy(-30));
+  back10Btn.addEventListener('click', () => seekBy(-10));
+  fwd10Btn.addEventListener('click', () => seekBy(10));
+  fwd30Btn.addEventListener('click', () => seekBy(30));
+
+  loadVoices();
+</script>
+
+</body>
+</html>
