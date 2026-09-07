@@ -1,0 +1,9 @@
+{
+  "environment": "test",
+  "host": "localhost",
+  "port": 8000,
+  "allowed_origins": ["*"],
+  "max_audio_minutes": 10,
+  "estimated_chars_per_second": 14,
+  "default_theme": "dark"
+}
