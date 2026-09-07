@@ -17,6 +17,24 @@
     --signal-dim: #6b5327;
     --danger: #d9634f;
     --success: #5fbf77;
+    --shadow: rgba(0,0,0,0.4);
+    --glow: rgba(232,163,61,0.06);
+    --input-bg: #101015;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f3f1ea;
+    --panel: #ffffff;
+    --panel-edge: #ddd7c9;
+    --ink: #232025;
+    --ink-dim: #7a7568;
+    --signal: #b9700f;
+    --signal-dim: #e6c896;
+    --danger: #b23a26;
+    --success: #29804a;
+    --shadow: rgba(60,50,30,0.12);
+    --glow: rgba(185,112,15,0.08);
+    --input-bg: #f8f6f0;
   }
 
   * { box-sizing: border-box; }
@@ -25,7 +43,7 @@
     margin: 0;
     min-height: 100vh;
     background:
-      radial-gradient(circle at 15% 10%, rgba(232,163,61,0.06), transparent 40%),
+      radial-gradient(circle at 15% 10%, var(--glow), transparent 40%),
       var(--bg);
     color: var(--ink);
     font-family: 'Inter', sans-serif;
@@ -33,6 +51,7 @@
     align-items: center;
     justify-content: center;
     padding: 32px 16px;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   .console {
@@ -42,7 +61,8 @@
     border: 1px solid var(--panel-edge);
     border-radius: 14px;
     padding: 28px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    box-shadow: 0 20px 60px var(--shadow);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 
   .console-header {
@@ -50,6 +70,7 @@
     align-items: baseline;
     justify-content: space-between;
     margin-bottom: 20px;
+    gap: 12px;
   }
 
   .console-header h1 {
@@ -62,11 +83,38 @@
     margin: 0;
   }
 
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
   .console-header .tag {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     color: var(--ink-dim);
     letter-spacing: 0.05em;
+  }
+
+  .theme-toggle {
+    background: transparent;
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    color: var(--ink-dim);
+    font-size: 14px;
+    line-height: 1;
+    padding: 6px 9px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .theme-toggle:hover { border-color: var(--signal); color: var(--signal); }
+
+  .field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
   }
 
   label.field-label {
@@ -76,13 +124,28 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-dim);
-    margin-bottom: 6px;
   }
+
+  .clear-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 2px 4px;
+    display: none;
+  }
+
+  .clear-btn:hover { color: var(--danger); }
+  .clear-btn.visible { display: inline-block; }
 
   textarea {
     width: 100%;
     min-height: 180px;
-    background: #101015;
+    background: var(--input-bg);
     border: 1px solid var(--panel-edge);
     border-radius: 8px;
     color: var(--ink);
@@ -91,7 +154,7 @@
     line-height: 1.6;
     padding: 16px;
     resize: vertical;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
   }
 
   textarea:focus { outline: none; border-color: var(--signal-dim); }
@@ -128,14 +191,14 @@
 
   input[type="text"].url-input {
     width: 100%;
-    background: #101015;
+    background: var(--input-bg);
     border: 1px solid var(--panel-edge);
     border-radius: 8px;
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     font-size: 14px;
     padding: 12px 14px;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
   }
 
   input[type="text"].url-input:focus { outline: none; border-color: var(--signal-dim); }
@@ -145,9 +208,12 @@
     margin-top: 10px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    color: var(--signal);
     letter-spacing: 0.04em;
+    color: var(--ink-dim);
+    transition: color 0.15s ease;
   }
+
+  .source-indicator.active { color: var(--signal); }
 
   .picker-row {
     display: flex;
@@ -158,7 +224,7 @@
   .picker { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 
   select {
-    background: #101015;
+    background: var(--input-bg);
     border: 1px solid var(--panel-edge);
     border-radius: 8px;
     color: var(--ink);
@@ -202,6 +268,8 @@
     flex: 1;
   }
 
+  :root[data-theme="light"] .btn-primary { color: #fff8ee; }
+
   .btn-primary:hover:not(:disabled) { background: #f0b25c; color: #14141a; }
 
   .btn-play {
@@ -211,6 +279,14 @@
   }
 
   .btn-play:hover:not(:disabled) { background: rgba(95,191,119,0.12); }
+
+  .btn-stop {
+    flex: 1;
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .btn-stop:hover:not(:disabled) { background: rgba(217,99,79,0.12); }
 
   .btn-icon { padding: 10px 12px; font-size: 13px; }
 
@@ -236,6 +312,7 @@
   .dot.state-ready { background: var(--success); }
   .dot.state-playing { background: var(--signal); animation: pulse 1s ease-in-out infinite; }
   .dot.state-error { background: var(--danger); }
+  .dot.state-cancelled { background: var(--ink-dim); }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
@@ -302,7 +379,7 @@
   .settings input[type="text"] {
     width: 100%;
     margin-top: 6px;
-    background: #101015;
+    background: var(--input-bg);
     border: 1px solid var(--panel-edge);
     border-radius: 6px;
     color: var(--ink-dim);
@@ -312,6 +389,8 @@
   }
 
   .settings input[type="text"]:focus { outline: none; border-color: var(--signal-dim); color: var(--ink); }
+  .settings input[type="text"]:disabled { opacity: 0.6; cursor: not-allowed; }
+  .settings .settings-note { margin-top: 4px; font-size: 10px; }
 </style>
 </head>
 <body>
@@ -319,10 +398,16 @@
 <div class="console">
   <div class="console-header">
     <h1>Read Aloud</h1>
-    <span class="tag">// text &rarr; speech</span>
+    <div class="header-right">
+      <span class="tag">// text &rarr; speech</span>
+      <button id="themeToggle" class="theme-toggle" type="button" title="Toggle light/dark theme">&#127769;</button>
+    </div>
   </div>
 
-  <label class="field-label" for="articleText">Paste text</label>
+  <div class="field-header">
+    <label class="field-label" for="articleText">Paste text</label>
+    <button id="clearTextBtn" class="clear-btn" type="button">Clear &#10005;</button>
+  </div>
   <textarea id="articleText" placeholder="Paste an article here... (up to about 10 minutes of speech)"></textarea>
   <div class="meta-row">
     <span id="charCount">0 characters</span>
@@ -331,7 +416,10 @@
 
   <div class="divider">or</div>
 
-  <label class="field-label" for="articleUrl">Paste a link</label>
+  <div class="field-header">
+    <label class="field-label" for="articleUrl">Paste a link</label>
+    <button id="clearUrlBtn" class="clear-btn" type="button">Clear &#10005;</button>
+  </div>
   <input id="articleUrl" type="text" class="url-input" placeholder="https://example.com/some-article">
 
   <div id="sourceIndicator" class="source-indicator">No input yet — paste text above or a link</div>
@@ -353,6 +441,7 @@
 
   <div class="controls">
     <button id="convertBtn" class="btn-primary">Convert</button>
+    <button id="stopBtn" class="btn-stop" type="button" style="display:none;">&#9632; Stop</button>
     <button id="playBtn" class="btn-play" disabled>&#9654; Play</button>
   </div>
 
@@ -378,21 +467,27 @@
   <div class="settings">
     Backend URL
     <input id="backendUrl" type="text" value="http://localhost:8000">
+    <div id="backendUrlNote" class="settings-note"></div>
   </div>
 </div>
 
 <script>
   const articleText = document.getElementById('articleText');
   const articleUrl = document.getElementById('articleUrl');
+  const clearTextBtn = document.getElementById('clearTextBtn');
+  const clearUrlBtn = document.getElementById('clearUrlBtn');
   const charCount = document.getElementById('charCount');
   const sourceIndicator = document.getElementById('sourceIndicator');
   const languageSelect = document.getElementById('languageSelect');
   const voiceSelect = document.getElementById('voiceSelect');
   const convertBtn = document.getElementById('convertBtn');
+  const stopBtn = document.getElementById('stopBtn');
   const playBtn = document.getElementById('playBtn');
   const statusEl = document.getElementById('status');
   const statusDot = document.getElementById('statusDot');
   const backendUrlInput = document.getElementById('backendUrl');
+  const backendUrlNote = document.getElementById('backendUrlNote');
+  const themeToggle = document.getElementById('themeToggle');
 
   const seekBar = document.getElementById('seekBar');
   const elapsedLabel = document.getElementById('elapsedLabel');
@@ -407,12 +502,55 @@
   let objectUrl = null;
   let allVoices = [];
   let isSeeking = false;
+  let abortController = null;
+  let convertTimerInterval = null;
+  let convertStartedAt = null;
+  let convertBaseMessage = '';
 
   function backendBase() {
     return backendUrlInput.value.replace(/\/+$/, '');
   }
 
-  // --- Source mode: text vs link, mutually exclusive ------------------------
+  // --- Theme: follow the browser by default, manual toggle overrides ---------
+
+  const THEME_STORAGE_KEY = 'read-aloud-theme';
+  const supportsColorScheme = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').media !== 'not all');
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+    themeToggle.textContent = theme === 'light' ? '\u2600\ufe0f' : '\ud83c\udf19';
+  }
+
+  function initTheme() {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark') {
+      applyTheme(stored);
+      return;
+    }
+    if (supportsColorScheme) {
+      const mql = window.matchMedia('(prefers-color-scheme: light)');
+      applyTheme(mql.matches ? 'light' : 'dark');
+      mql.addEventListener('change', (e) => {
+        // Keep following the OS as long as the user hasn't manually chosen.
+        if (!localStorage.getItem(THEME_STORAGE_KEY)) {
+          applyTheme(e.matches ? 'light' : 'dark');
+        }
+      });
+    } else {
+      applyTheme('dark'); // may be overridden by config's default_theme once loaded
+    }
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'light' ? 'dark' : 'light';
+    localStorage.setItem(THEME_STORAGE_KEY, next);
+    applyTheme(next);
+  });
+
+  initTheme();
+
+  // --- Source mode: text vs link, mutually exclusive but easy to switch ------
 
   function updateSourceMode() {
     const hasText = articleText.value.trim().length > 0;
@@ -420,6 +558,11 @@
 
     articleUrl.disabled = hasText;
     articleText.disabled = hasUrl;
+
+    clearTextBtn.classList.toggle('visible', hasText);
+    clearUrlBtn.classList.toggle('visible', hasUrl);
+
+    sourceIndicator.classList.toggle('active', hasText || hasUrl);
 
     if (hasUrl) {
       sourceIndicator.textContent = 'Source: Link (article will be extracted from the page)';
@@ -436,10 +579,23 @@
   });
   articleUrl.addEventListener('input', updateSourceMode);
 
+  clearTextBtn.addEventListener('click', () => {
+    articleText.value = '';
+    charCount.textContent = '0 characters';
+    updateSourceMode();
+    articleText.focus();
+  });
+
+  clearUrlBtn.addEventListener('click', () => {
+    articleUrl.value = '';
+    updateSourceMode();
+    articleUrl.focus();
+  });
+
   // --- Status badge -----------------------------------------------------------
 
   function setStatus(message, state = 'idle') {
-    // state: idle | converting | ready | playing | error
+    // state: idle | converting | ready | playing | error | cancelled
     statusEl.textContent = message;
     statusEl.classList.toggle('error', state === 'error');
     statusEl.classList.toggle('ready', state === 'ready');
@@ -480,6 +636,34 @@
 
   languageSelect.addEventListener('change', updateVoiceOptions);
 
+  // --- Server config: production/test mode + fallback theme -------------------
+
+  async function loadServerConfig() {
+    try {
+      const res = await fetch(`${backendBase()}/config`);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const cfg = await res.json();
+
+      if (cfg.environment === 'production') {
+        backendUrlInput.disabled = true;
+        backendUrlNote.textContent = 'Fixed by the server (production mode).';
+      } else {
+        backendUrlInput.disabled = false;
+        backendUrlNote.textContent = '';
+      }
+
+      // Only used as a last resort, when the browser can't tell us its own
+      // preference and the user hasn't manually picked a theme yet.
+      if (!supportsColorScheme && !localStorage.getItem(THEME_STORAGE_KEY) && cfg.default_theme) {
+        applyTheme(cfg.default_theme);
+      }
+    } catch (err) {
+      // The backend may simply not be reachable yet (e.g. not started, or a
+      // wrong Backend URL); the user can still edit it manually and retry,
+      // so this stays quiet rather than surfacing as an error.
+    }
+  }
+
   // --- Playback state ----------------------------------------------------------
 
   function resetPlayback() {
@@ -501,6 +685,32 @@
     totalLabel.textContent = '0:00';
   }
 
+  function startConvertTimer(baseMessage) {
+    convertBaseMessage = baseMessage;
+    convertStartedAt = performance.now();
+    convertTimerInterval = setInterval(() => {
+      const elapsed = (performance.now() - convertStartedAt) / 1000;
+      setStatus(`${convertBaseMessage} (${elapsed.toFixed(1)}s)`, 'converting');
+    }, 100);
+  }
+
+  function stopConvertTimer() {
+    if (convertTimerInterval) {
+      clearInterval(convertTimerInterval);
+      convertTimerInterval = null;
+    }
+    if (convertStartedAt == null) return 0;
+    const elapsed = (performance.now() - convertStartedAt) / 1000;
+    convertStartedAt = null;
+    return elapsed;
+  }
+
+  function setConvertingUI(isConverting) {
+    convertBtn.style.display = isConverting ? 'none' : '';
+    stopBtn.style.display = isConverting ? '' : 'none';
+    convertBtn.disabled = isConverting;
+  }
+
   async function convert() {
     const hasUrl = articleUrl.value.trim().length > 0;
     const hasText = articleText.value.trim().length > 0;
@@ -511,8 +721,9 @@
     }
 
     resetPlayback();
-    convertBtn.disabled = true;
-    setStatus(hasUrl ? 'Fetching the article and converting to speech...' : 'Converting to speech...', 'converting');
+    setConvertingUI(true);
+    abortController = new AbortController();
+    startConvertTimer(hasUrl ? 'Fetching the article and converting to speech...' : 'Converting to speech...');
 
     const voiceId = voiceSelect.value || 'auto';
     const payload = hasUrl
@@ -524,6 +735,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -535,8 +747,10 @@
       const detectedLang = response.headers.get('X-Detected-Language');
       const sourceTitle = response.headers.get('X-Source-Title');
       const durationHeader = parseFloat(response.headers.get('X-Audio-Duration-Seconds') || '0');
+      const serverConversionTime = parseFloat(response.headers.get('X-Conversion-Time-Seconds') || '');
 
       const blob = await response.blob();
+      const totalConvertSeconds = stopConvertTimer();
       objectUrl = URL.createObjectURL(blob);
       audio = new Audio(objectUrl);
 
@@ -550,7 +764,10 @@
 
         const langNote = detectedLang ? ` (detected: ${detectedLang})` : '';
         const titleNote = sourceTitle ? ` — "${sourceTitle}"` : '';
-        setStatus(`Ready to play — ${voiceLabel}${langNote}${titleNote}`, 'ready');
+        const timeNote = isFinite(serverConversionTime)
+          ? ` — converted in ${serverConversionTime.toFixed(1)}s`
+          : ` — converted in ${totalConvertSeconds.toFixed(1)}s`;
+        setStatus(`Ready to play — ${voiceLabel}${langNote}${titleNote}${timeNote}`, 'ready');
       });
 
       audio.addEventListener('timeupdate', () => {
@@ -574,9 +791,21 @@
         setStatus('Finished playing.', 'ready');
       });
     } catch (err) {
-      setStatus(err.message, 'error');
+      stopConvertTimer();
+      if (err.name === 'AbortError') {
+        setStatus('Conversion stopped.', 'cancelled');
+      } else {
+        setStatus(err.message, 'error');
+      }
     } finally {
-      convertBtn.disabled = false;
+      setConvertingUI(false);
+      abortController = null;
+    }
+  }
+
+  function stopConversion() {
+    if (abortController) {
+      abortController.abort();
     }
   }
 
@@ -615,6 +844,7 @@
   });
 
   convertBtn.addEventListener('click', convert);
+  stopBtn.addEventListener('click', stopConversion);
   playBtn.addEventListener('click', togglePlay);
   restartBtn.addEventListener('click', restart);
   back30Btn.addEventListener('click', () => seekBy(-30));
@@ -623,6 +853,7 @@
   fwd30Btn.addEventListener('click', () => seekBy(30));
 
   loadVoices();
+  loadServerConfig();
 </script>
 
 </body>
