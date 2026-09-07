@@ -16,6 +16,7 @@
     --signal: #e8a33d;
     --signal-dim: #6b5327;
     --danger: #d9634f;
+    --success: #5fbf77;
   }
 
   * { box-sizing: border-box; }
@@ -68,9 +69,19 @@
     letter-spacing: 0.05em;
   }
 
+  label.field-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+
   textarea {
     width: 100%;
-    min-height: 200px;
+    min-height: 180px;
     background: #101015;
     border: 1px solid var(--panel-edge);
     border-radius: 8px;
@@ -80,14 +91,12 @@
     line-height: 1.6;
     padding: 16px;
     resize: vertical;
+    transition: opacity 0.15s ease;
   }
 
-  textarea:focus {
-    outline: none;
-    border-color: var(--signal-dim);
-  }
-
+  textarea:focus { outline: none; border-color: var(--signal-dim); }
   textarea::placeholder { color: var(--ink-dim); }
+  textarea:disabled { opacity: 0.35; cursor: not-allowed; }
 
   .meta-row {
     display: flex;
@@ -98,29 +107,55 @@
     margin-top: 6px;
   }
 
-  .meta-row.warn { color: var(--danger); }
-
-  /* --- voice / language pickers --- */
-  .picker-row {
+  .divider {
     display: flex;
-    gap: 12px;
-    margin-top: 16px;
-  }
-
-  .picker {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .picker label {
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ink-dim);
   }
+
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--panel-edge);
+  }
+
+  input[type="text"].url-input {
+    width: 100%;
+    background: #101015;
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 12px 14px;
+    transition: opacity 0.15s ease;
+  }
+
+  input[type="text"].url-input:focus { outline: none; border-color: var(--signal-dim); }
+  input[type="text"].url-input:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .source-indicator {
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--signal);
+    letter-spacing: 0.04em;
+  }
+
+  .picker-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .picker { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 
   select {
     background: #101015;
@@ -137,8 +172,8 @@
   .controls {
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-top: 18px;
+    gap: 12px;
+    margin-top: 20px;
   }
 
   button {
@@ -157,15 +192,8 @@
     white-space: nowrap;
   }
 
-  button:hover:not(:disabled) {
-    border-color: var(--signal);
-    color: var(--signal);
-  }
-
-  button:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
+  button:hover:not(:disabled) { border-color: var(--signal); color: var(--signal); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
 
   .btn-primary {
     background: var(--signal);
@@ -174,83 +202,52 @@
     flex: 1;
   }
 
-  .btn-primary:hover:not(:disabled) {
-    background: #f0b25c;
-    color: #14141a;
-  }
+  .btn-primary:hover:not(:disabled) { background: #f0b25c; color: #14141a; }
 
-  .btn-icon {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
-
-  .btn-stop:hover:not(:disabled) {
-    border-color: var(--danger);
-    color: var(--danger);
-  }
-
-  .transport {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid var(--panel-edge);
-  }
-
-  .transport-top {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .bars {
-    display: flex;
-    align-items: flex-end;
-    gap: 3px;
-    height: 22px;
-    width: 42px;
-    flex-shrink: 0;
-  }
-
-  .bars span {
-    display: block;
-    width: 4px;
-    background: var(--signal-dim);
-    border-radius: 2px;
-    height: 20%;
-    transition: background 0.2s ease;
-  }
-
-  .bars.active span {
-    background: var(--signal);
-    animation: bounce 0.9s ease-in-out infinite;
-  }
-
-  .bars span:nth-child(1) { animation-delay: 0s; }
-  .bars span:nth-child(2) { animation-delay: 0.15s; }
-  .bars span:nth-child(3) { animation-delay: 0.3s; }
-  .bars span:nth-child(4) { animation-delay: 0.1s; }
-  .bars span:nth-child(5) { animation-delay: 0.25s; }
-
-  @keyframes bounce {
-    0%, 100% { height: 20%; }
-    50% { height: 100%; }
-  }
-
-  .status {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    color: var(--ink-dim);
+  .btn-play {
     flex: 1;
+    border-color: var(--success);
+    color: var(--success);
   }
 
-  .status.error { color: var(--danger); }
+  .btn-play:hover:not(:disabled) { background: rgba(95,191,119,0.12); }
 
-  /* --- seek bar --- */
-  .seek-row {
+  .btn-icon { padding: 10px 12px; font-size: 13px; }
+
+  /* --- status badge --- */
+  .status-badge {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-top: 14px;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--panel-edge);
   }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--ink-dim);
+  }
+
+  .dot.state-converting { background: var(--signal); animation: pulse 1s ease-in-out infinite; }
+  .dot.state-ready { background: var(--success); }
+  .dot.state-playing { background: var(--signal); animation: pulse 1s ease-in-out infinite; }
+  .dot.state-error { background: var(--danger); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .status { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-dim); flex: 1; }
+  .status.error { color: var(--danger); }
+  .status.ready { color: var(--success); }
+
+  /* --- seek bar --- */
+  .seek-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 
   .time-label {
     font-family: 'JetBrains Mono', monospace;
@@ -293,12 +290,7 @@
 
   input[type="range"]:disabled::-webkit-slider-thumb { background: var(--panel-edge); }
 
-  .skip-row {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 14px;
-  }
+  .skip-row { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
 
   .settings {
     margin-top: 18px;
@@ -319,11 +311,7 @@
     padding: 8px 10px;
   }
 
-  .settings input[type="text"]:focus {
-    outline: none;
-    border-color: var(--signal-dim);
-    color: var(--ink);
-  }
+  .settings input[type="text"]:focus { outline: none; border-color: var(--signal-dim); color: var(--ink); }
 </style>
 </head>
 <body>
@@ -334,21 +322,29 @@
     <span class="tag">// text &rarr; speech</span>
   </div>
 
+  <label class="field-label" for="articleText">Paste text</label>
   <textarea id="articleText" placeholder="Paste an article here... (up to about 10 minutes of speech)"></textarea>
   <div class="meta-row">
     <span id="charCount">0 characters</span>
     <span>max ~10 minutes of audio per conversion</span>
   </div>
 
+  <div class="divider">or</div>
+
+  <label class="field-label" for="articleUrl">Paste a link</label>
+  <input id="articleUrl" type="text" class="url-input" placeholder="https://example.com/some-article">
+
+  <div id="sourceIndicator" class="source-indicator">No input yet — paste text above or a link</div>
+
   <div class="picker-row">
     <div class="picker">
-      <label for="languageSelect">Language</label>
+      <label class="field-label" for="languageSelect">Language</label>
       <select id="languageSelect">
         <option value="auto">Auto (detect from text)</option>
       </select>
     </div>
     <div class="picker">
-      <label for="voiceSelect">Voice</label>
+      <label class="field-label" for="voiceSelect">Voice</label>
       <select id="voiceSelect">
         <option value="auto">Auto</option>
       </select>
@@ -356,32 +352,27 @@
   </div>
 
   <div class="controls">
-    <button id="convertBtn" class="btn-primary">Convert &amp; Play</button>
+    <button id="convertBtn" class="btn-primary">Convert</button>
+    <button id="playBtn" class="btn-play" disabled>&#9654; Play</button>
   </div>
 
-  <div class="transport">
-    <div class="transport-top">
-      <div id="bars" class="bars">
-        <span></span><span></span><span></span><span></span><span></span>
-      </div>
-      <span id="status" class="status">Idle — paste text and press Convert &amp; Play</span>
-      <button id="pauseBtn" disabled>Pause</button>
-      <button id="stopBtn" class="btn-stop" disabled>Stop</button>
-    </div>
+  <div class="status-badge">
+    <span id="statusDot" class="dot state-idle"></span>
+    <span id="status" class="status">Idle — add text or a link, then press Convert</span>
+  </div>
 
-    <div class="seek-row">
-      <span id="elapsedLabel" class="time-label">0:00</span>
-      <input id="seekBar" type="range" min="0" max="100" value="0" step="1" disabled>
-      <span id="totalLabel" class="time-label">0:00</span>
-    </div>
+  <div class="seek-row">
+    <span id="elapsedLabel" class="time-label">0:00</span>
+    <input id="seekBar" type="range" min="0" max="100" value="0" step="1" disabled>
+    <span id="totalLabel" class="time-label">0:00</span>
+  </div>
 
-    <div class="skip-row">
-      <button id="restartBtn" class="btn-icon" disabled title="Restart from the beginning">&#8634; Restart</button>
-      <button id="back30Btn" class="btn-icon" disabled>&laquo; 30s</button>
-      <button id="back10Btn" class="btn-icon" disabled>&laquo; 10s</button>
-      <button id="fwd10Btn" class="btn-icon" disabled>10s &raquo;</button>
-      <button id="fwd30Btn" class="btn-icon" disabled>30s &raquo;</button>
-    </div>
+  <div class="skip-row">
+    <button id="restartBtn" class="btn-icon" disabled title="Restart from the beginning">&#8634; Restart</button>
+    <button id="back30Btn" class="btn-icon" disabled>&laquo; 30s</button>
+    <button id="back10Btn" class="btn-icon" disabled>&laquo; 10s</button>
+    <button id="fwd10Btn" class="btn-icon" disabled>10s &raquo;</button>
+    <button id="fwd30Btn" class="btn-icon" disabled>30s &raquo;</button>
   </div>
 
   <div class="settings">
@@ -392,14 +383,15 @@
 
 <script>
   const articleText = document.getElementById('articleText');
+  const articleUrl = document.getElementById('articleUrl');
   const charCount = document.getElementById('charCount');
+  const sourceIndicator = document.getElementById('sourceIndicator');
   const languageSelect = document.getElementById('languageSelect');
   const voiceSelect = document.getElementById('voiceSelect');
   const convertBtn = document.getElementById('convertBtn');
-  const pauseBtn = document.getElementById('pauseBtn');
-  const stopBtn = document.getElementById('stopBtn');
+  const playBtn = document.getElementById('playBtn');
   const statusEl = document.getElementById('status');
-  const bars = document.getElementById('bars');
+  const statusDot = document.getElementById('statusDot');
   const backendUrlInput = document.getElementById('backendUrl');
 
   const seekBar = document.getElementById('seekBar');
@@ -420,13 +412,38 @@
     return backendUrlInput.value.replace(/\/+$/, '');
   }
 
+  // --- Source mode: text vs link, mutually exclusive ------------------------
+
+  function updateSourceMode() {
+    const hasText = articleText.value.trim().length > 0;
+    const hasUrl = articleUrl.value.trim().length > 0;
+
+    articleUrl.disabled = hasText;
+    articleText.disabled = hasUrl;
+
+    if (hasUrl) {
+      sourceIndicator.textContent = 'Source: Link (article will be extracted from the page)';
+    } else if (hasText) {
+      sourceIndicator.textContent = 'Source: Text (pasted directly)';
+    } else {
+      sourceIndicator.textContent = 'No input yet — paste text above or a link';
+    }
+  }
+
   articleText.addEventListener('input', () => {
     charCount.textContent = `${articleText.value.length} characters`;
+    updateSourceMode();
   });
+  articleUrl.addEventListener('input', updateSourceMode);
 
-  function setStatus(message, isError = false) {
+  // --- Status badge -----------------------------------------------------------
+
+  function setStatus(message, state = 'idle') {
+    // state: idle | converting | ready | playing | error
     statusEl.textContent = message;
-    statusEl.classList.toggle('error', isError);
+    statusEl.classList.toggle('error', state === 'error');
+    statusEl.classList.toggle('ready', state === 'ready');
+    statusDot.className = `dot state-${state}`;
   }
 
   function formatTime(seconds) {
@@ -436,7 +453,7 @@
     return `${m}:${String(s).padStart(2, '0')}`;
   }
 
-  // --- Load available voices/languages from the backend ---------------------
+  // --- Load available voices/languages ---------------------------------------
 
   async function loadVoices() {
     try {
@@ -450,7 +467,7 @@
 
       updateVoiceOptions();
     } catch (err) {
-      setStatus(`Could not load voice list from backend (${err.message}). Check the Backend URL below.`, true);
+      setStatus(`Could not load voice list from backend (${err.message}). Check the Backend URL below.`, 'error');
     }
   }
 
@@ -463,7 +480,7 @@
 
   languageSelect.addEventListener('change', updateVoiceOptions);
 
-  // --- Playback state ---------------------------------------------------------
+  // --- Playback state ----------------------------------------------------------
 
   function resetPlayback() {
     if (audio) {
@@ -475,44 +492,48 @@
       objectUrl = null;
     }
     audio = null;
-    bars.classList.remove('active');
-    [pauseBtn, stopBtn, restartBtn, back30Btn, back10Btn, fwd10Btn, fwd30Btn].forEach(b => b.disabled = true);
+    playBtn.disabled = true;
+    playBtn.innerHTML = '&#9654; Play';
+    [restartBtn, back30Btn, back10Btn, fwd10Btn, fwd30Btn].forEach(b => b.disabled = true);
     seekBar.disabled = true;
     seekBar.value = 0;
     elapsedLabel.textContent = '0:00';
     totalLabel.textContent = '0:00';
-    pauseBtn.textContent = 'Pause';
   }
 
-  async function convertAndPlay() {
-    const text = articleText.value.trim();
-    if (!text) {
-      setStatus('Paste some text first.', true);
+  async function convert() {
+    const hasUrl = articleUrl.value.trim().length > 0;
+    const hasText = articleText.value.trim().length > 0;
+
+    if (!hasUrl && !hasText) {
+      setStatus('Add some text or a link first.', 'error');
       return;
     }
 
     resetPlayback();
     convertBtn.disabled = true;
-    setStatus('Converting to speech...');
+    setStatus(hasUrl ? 'Fetching the article and converting to speech...' : 'Converting to speech...', 'converting');
 
     const voiceId = voiceSelect.value || 'auto';
+    const payload = hasUrl
+      ? { url: articleUrl.value.trim(), voice_id: voiceId }
+      : { text: articleText.value.trim(), voice_id: voiceId };
 
     try {
       const response = await fetch(`${backendBase()}/synthesize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice_id: voiceId }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        // Friendly handling: the backend sends a plain-language `detail`
-        // message for both the too-long case (413) and other errors.
         const problem = await response.json().catch(() => ({}));
         throw new Error(problem.detail || `Server returned ${response.status}`);
       }
 
       const voiceLabel = response.headers.get('X-Voice-Label') || 'default voice';
       const detectedLang = response.headers.get('X-Detected-Language');
+      const sourceTitle = response.headers.get('X-Source-Title');
       const durationHeader = parseFloat(response.headers.get('X-Audio-Duration-Seconds') || '0');
 
       const blob = await response.blob();
@@ -524,6 +545,12 @@
         seekBar.max = Math.floor(total);
         totalLabel.textContent = formatTime(total);
         seekBar.disabled = false;
+        playBtn.disabled = false;
+        [restartBtn, back30Btn, back10Btn, fwd10Btn, fwd30Btn].forEach(b => b.disabled = false);
+
+        const langNote = detectedLang ? ` (detected: ${detectedLang})` : '';
+        const titleNote = sourceTitle ? ` — "${sourceTitle}"` : '';
+        setStatus(`Ready to play — ${voiceLabel}${langNote}${titleNote}`, 'ready');
       });
 
       audio.addEventListener('timeupdate', () => {
@@ -533,43 +560,33 @@
       });
 
       audio.addEventListener('play', () => {
-        bars.classList.add('active');
-        pauseBtn.textContent = 'Pause';
+        playBtn.innerHTML = '&#10074;&#10074; Pause';
+        setStatus('Playing...', 'playing');
       });
-      audio.addEventListener('pause', () => bars.classList.remove('active'));
+      audio.addEventListener('pause', () => {
+        if (audio && audio.currentTime < audio.duration) {
+          playBtn.innerHTML = '&#9654; Play';
+          setStatus('Paused.', 'ready');
+        }
+      });
       audio.addEventListener('ended', () => {
-        setStatus('Finished. Paste new text or press Convert & Play again.');
-        bars.classList.remove('active');
-        pauseBtn.textContent = 'Pause';
+        playBtn.innerHTML = '&#9654; Play';
+        setStatus('Finished playing.', 'ready');
       });
-
-      [pauseBtn, stopBtn, restartBtn, back30Btn, back10Btn, fwd10Btn, fwd30Btn].forEach(b => b.disabled = false);
-
-      const langNote = detectedLang ? ` (detected: ${detectedLang})` : '';
-      setStatus(`Playing — ${voiceLabel}${langNote}`);
-      await audio.play();
     } catch (err) {
-      setStatus(err.message, true);
+      setStatus(err.message, 'error');
     } finally {
       convertBtn.disabled = false;
     }
   }
 
-  function togglePause() {
+  function togglePlay() {
     if (!audio) return;
     if (audio.paused) {
       audio.play();
-      pauseBtn.textContent = 'Pause';
     } else {
       audio.pause();
-      pauseBtn.textContent = 'Resume';
-      setStatus('Paused.');
     }
-  }
-
-  function stopPlayback() {
-    setStatus('Stopped.');
-    resetPlayback();
   }
 
   function seekBy(deltaSeconds) {
@@ -588,8 +605,6 @@
     audio.play();
   }
 
-  // Dragging the seek bar: pause updates from timeupdate while the user drags,
-  // then jump playback to the chosen point on release.
   seekBar.addEventListener('input', () => {
     isSeeking = true;
     elapsedLabel.textContent = formatTime(parseFloat(seekBar.value));
@@ -599,9 +614,8 @@
     isSeeking = false;
   });
 
-  convertBtn.addEventListener('click', convertAndPlay);
-  pauseBtn.addEventListener('click', togglePause);
-  stopBtn.addEventListener('click', stopPlayback);
+  convertBtn.addEventListener('click', convert);
+  playBtn.addEventListener('click', togglePlay);
   restartBtn.addEventListener('click', restart);
   back30Btn.addEventListener('click', () => seekBy(-30));
   back10Btn.addEventListener('click', () => seekBy(-10));

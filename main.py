@@ -1,7 +1,8 @@
 """
 Read-Aloud TTS backend.
 
-A FastAPI service that wraps the Piper TTS CLI. It accepts a block of text
+A FastAPI service that wraps the Piper TTS CLI. It accepts either raw text
+or a URL (in which case it extracts the main article content server-side)
 over HTTP, picks a voice (explicit or auto-detected from the text's
 language), and returns synthesized speech as a WAV file. Enforces a
 10-minute-of-audio cap with a friendly, actionable error message.
@@ -21,11 +22,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import trafilatura
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from langdetect import DetectorFactory, LangDetectException, detect
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, model_validator
 
 # langdetect is non-deterministic by default (random seed); pin it so the
 # same text always detects the same language.
@@ -66,16 +68,45 @@ class Voice:
 # Voices whose .onnx file isn't actually downloaded are simply hidden from
 # /voices and unusable, rather than crashing the app.
 VOICES = [
+    # English (US)
     Voice("en_US-lessac-medium", "en_US-lessac-medium.onnx", "en", "English", "Lessac (US, medium)"),
+    Voice("en_US-amy-medium", "en_US-amy-medium.onnx", "en", "English", "Amy (US, medium)"),
+    Voice("en_US-libritts_r-medium", "en_US-libritts_r-medium.onnx", "en", "English", "LibriTTS-R (US, medium)"),
+    Voice("en_US-ryan-medium", "en_US-ryan-medium.onnx", "en", "English", "Ryan (US, medium)"),
+    Voice("en_US-kristin-medium", "en_US-kristin-medium.onnx", "en", "English", "Kristin (US, medium)"),
+    # English (UK)
     Voice("en_GB-alan-medium", "en_GB-alan-medium.onnx", "en", "English", "Alan (UK, medium)"),
+    Voice("en_GB-vctk-medium", "en_GB-vctk-medium.onnx", "en", "English", "VCTK (UK, multi-speaker)"),
+    Voice("en_GB-northern_english_male-medium", "en_GB-northern_english_male-medium.onnx", "en", "English", "Northern English Male (medium)"),
+    # German
     Voice("de_DE-thorsten-medium", "de_DE-thorsten-medium.onnx", "de", "German", "Thorsten (medium)"),
+    Voice("de_DE-eva_k-x_low", "de_DE-eva_k-x_low.onnx", "de", "German", "Eva K (x-low)"),
+    Voice("de_DE-kerstin-low", "de_DE-kerstin-low.onnx", "de", "German", "Kerstin (low)"),
+    Voice("de_DE-ramona-low", "de_DE-ramona-low.onnx", "de", "German", "Ramona (low)"),
+    # French
     Voice("fr_FR-siwis-medium", "fr_FR-siwis-medium.onnx", "fr", "French", "Siwis (medium)"),
+    Voice("fr_FR-gilles-low", "fr_FR-gilles-low.onnx", "fr", "French", "Gilles (low)"),
+    Voice("fr_FR-upmc-medium", "fr_FR-upmc-medium.onnx", "fr", "French", "UPMC (medium)"),
+    # Spanish
     Voice("es_ES-davefx-medium", "es_ES-davefx-medium.onnx", "es", "Spanish", "Davefx (medium)"),
+    Voice("es_ES-carlfm-x_low", "es_ES-carlfm-x_low.onnx", "es", "Spanish", "Carlfm (x-low)"),
+    Voice("es_MX-ald-medium", "es_MX-ald-medium.onnx", "es", "Spanish", "Ald (MX, medium)"),
+    # Italian
     Voice("it_IT-riccardo-x_low", "it_IT-riccardo-x_low.onnx", "it", "Italian", "Riccardo (x-low)"),
+    Voice("it_IT-paola-medium", "it_IT-paola-medium.onnx", "it", "Italian", "Paola (medium)"),
+    # Portuguese
     Voice("pt_BR-faber-medium", "pt_BR-faber-medium.onnx", "pt", "Portuguese", "Faber (BR, medium)"),
+    Voice("pt_BR-edresson-low", "pt_BR-edresson-low.onnx", "pt", "Portuguese", "Edresson (BR, low)"),
+    Voice("pt_PT-tugao-medium", "pt_PT-tugao-medium.onnx", "pt", "Portuguese", "Tugão (PT, medium)"),
+    # Dutch
     Voice("nl_NL-mls-medium", "nl_NL-mls-medium.onnx", "nl", "Dutch", "MLS (medium)"),
+    Voice("nl_BE-nathalie-medium", "nl_BE-nathalie-medium.onnx", "nl", "Dutch", "Nathalie (BE, medium)"),
+    # Polish
     Voice("pl_PL-darkman-medium", "pl_PL-darkman-medium.onnx", "pl", "Polish", "Darkman (medium)"),
+    Voice("pl_PL-gosia-medium", "pl_PL-gosia-medium.onnx", "pl", "Polish", "Gosia (medium)"),
+    # Hungarian
     Voice("hu_HU-imre-medium", "hu_HU-imre-medium.onnx", "hu", "Hungarian", "Imre (medium)"),
+    Voice("hu_HU-anna-medium", "hu_HU-anna-medium.onnx", "hu", "Hungarian", "Anna (medium)"),
 ]
 
 DEFAULT_FALLBACK_VOICE_ID = "en_US-lessac-medium"  # used when detection fails / no match downloaded
@@ -93,8 +124,50 @@ app.add_middleware(
 
 
 class SynthesizeRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARS)
+    text: Optional[str] = None
+    url: Optional[str] = None
     voice_id: Optional[str] = None  # None or "auto" -> detect language and pick a matching voice
+
+    @model_validator(mode="after")
+    def check_one_source(self):
+        if not (self.text or "").strip() and not (self.url or "").strip():
+            raise ValueError("Provide either text or a url.")
+        return self
+
+
+def extract_article(url: str) -> tuple[str, Optional[str]]:
+    """Fetch a URL and pull out the main article text (title, if found).
+
+    Uses trafilatura.extract() for the text (a plain string across all
+    trafilatura versions) and extract_metadata() for the title, rather than
+    bare_extraction()'s return value, whose type (dict vs. Document object)
+    has changed across trafilatura releases.
+    """
+    downloaded = trafilatura.fetch_url(url)
+    if not downloaded:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not fetch that link. Check the URL is correct and publicly accessible.",
+        )
+
+    text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
+    if not text or not text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Could not find readable article content at that link. Try pasting the text directly instead.",
+        )
+
+    title = None
+    try:
+        metadata = trafilatura.extract_metadata(downloaded)
+        if metadata is not None:
+            title = getattr(metadata, "title", None) or (
+                metadata.get("title") if hasattr(metadata, "get") else None
+            )
+    except Exception:
+        title = None  # title is a nice-to-have; never fail the request over it
+
+    return text.strip(), title
 
 
 def available_voices() -> list[Voice]:
@@ -179,10 +252,24 @@ def list_voices():
 
 @app.post("/synthesize")
 def synthesize(req: SynthesizeRequest):
-    """Convert text to speech and return a WAV file, capped at 10 minutes of audio."""
-    text = req.text.strip()
+    """Convert text (or the article at a URL) to speech, capped at 10 minutes of audio."""
+    if req.url and req.url.strip():
+        text, title = extract_article(req.url.strip())
+        source = "link"
+    else:
+        text = (req.text or "").strip()
+        title = None
+        source = "text"
+
     if not text:
         raise HTTPException(status_code=400, detail="No text provided.")
+
+    if len(text) > MAX_INPUT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"That's {len(text)} characters — too long to process in one go. "
+            f"Try a shorter article or excerpt (under {MAX_INPUT_CHARS} characters).",
+        )
 
     voice, detected_lang = resolve_voice(req.voice_id, text)
 
@@ -219,5 +306,7 @@ def synthesize(req: SynthesizeRequest):
             "X-Voice-Used": voice.id,
             "X-Voice-Label": voice.label,
             "X-Detected-Language": detected_lang or "",
+            "X-Source": source,
+            "X-Source-Title": title or "",
         },
     )
