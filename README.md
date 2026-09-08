@@ -246,6 +246,11 @@ a note to the console — it never fails to start over a bad config file.
   exception.
 - The response also reports the extracted article's title (`X-Source-Title`
   header) when available, which the frontend shows next to "Ready to play".
+- While you're typing/pasting a link (before pressing Convert), the frontend
+  calls `POST /extract` — the same extraction step, without synthesizing
+  anything — so the character count shown under the link field reflects the
+  article's actual length rather than the URL string's length. This is
+  debounced to fire shortly after you stop typing, not on every keystroke.
 
 ## Switching between text and a link
 

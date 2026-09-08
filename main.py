@@ -27,7 +27,7 @@ from fastapi.responses import Response
 
 from article import extract_article
 from config import ALLOWED_ORIGINS, CONFIG, DEFAULT_THEME, ENVIRONMENT, HOST, MAX_INPUT_CHARS, PORT
-from schemas import SynthesizeRequest
+from schemas import ExtractRequest, SynthesizeRequest
 from speech import MAX_AUDIO_SECONDS, estimate_duration_seconds, friendly_too_long_message, synthesize_with_piper
 from voices import available_voices, resolve_voice
 
@@ -77,6 +77,19 @@ def list_voices():
         }
         for v in available_voices()
     ]
+
+
+@app.post("/extract")
+def extract(req: ExtractRequest):
+    """Fetch a URL and report the length of its extracted article text.
+
+    Used by the frontend to show how much text a pasted link will actually
+    produce (the article body, not the URL string itself) without running
+    a full conversion. Reuses the same extraction as /synthesize, so the
+    character count matches what synthesis will actually see.
+    """
+    text, title = extract_article(req.url.strip())
+    return {"char_count": len(text), "title": title}
 
 
 @app.post("/synthesize")
