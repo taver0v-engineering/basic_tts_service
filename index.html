@@ -20,6 +20,9 @@
     --shadow: rgba(0,0,0,0.4);
     --glow: rgba(232,163,61,0.06);
     --input-bg: #101015;
+    /* Slightly lighter than --input-bg, so an inactive field visibly
+       recedes toward the panel instead of just going semi-transparent. */
+    --input-bg-inactive: #1a1a20;
   }
 
   :root[data-theme="light"] {
@@ -35,6 +38,8 @@
     --shadow: rgba(60,50,30,0.12);
     --glow: rgba(185,112,15,0.08);
     --input-bg: #f8f6f0;
+    /* Slightly darker/greyer than --input-bg, mirroring the dark-mode intent. */
+    --input-bg-inactive: #ebe7dc;
   }
 
   * { box-sizing: border-box; }
@@ -142,8 +147,17 @@
     border-style: solid;
   }
 
-  .field-active { border-color: var(--signal-dim) !important; }
-  .field-inactive { opacity: 0.55; }
+  /* Active vs. inactive field: a thicker, fully-saturated border plus a
+     background shift, so the difference reads at a glance in both themes
+     without relying on opacity alone (which also fades the text). */
+  .field-active {
+    border-width: 2px !important;
+    border-color: var(--signal) !important;
+  }
+  .field-inactive {
+    background: var(--input-bg-inactive) !important;
+    opacity: 0.7;
+  }
 
   textarea {
     width: 100%;
@@ -424,6 +438,9 @@
     <span id="urlStatusTag" class="field-status">Inactive</span>
   </div>
   <input id="articleUrl" type="text" class="url-input" placeholder="https://example.com/some-article">
+  <div class="meta-row">
+    <span id="urlCharCount">0 characters</span>
+  </div>
 
   <div id="sourceIndicator" class="source-indicator">Active: Text — click into either field above to switch which one Convert will use.</div>
 
@@ -480,6 +497,7 @@
   const textStatusTag = document.getElementById('textStatusTag');
   const urlStatusTag = document.getElementById('urlStatusTag');
   const charCount = document.getElementById('charCount');
+  const urlCharCount = document.getElementById('urlCharCount');
   const sourceIndicator = document.getElementById('sourceIndicator');
   const languageSelect = document.getElementById('languageSelect');
   const voiceSelect = document.getElementById('voiceSelect');
@@ -590,7 +608,9 @@
     const activeHasContent = activeField.value.trim().length > 0;
     const otherHasContent = otherField.value.trim().length > 0;
 
-    sourceIndicator.classList.toggle('active', activeHasContent);
+    // Always colored: which field is active is useful to know whether or
+    // not it has content yet, so this shouldn't fade just because it's empty.
+    sourceIndicator.classList.add('active');
 
     if (activeHasContent) {
       sourceIndicator.textContent = otherHasContent
@@ -611,6 +631,7 @@
     refreshSourceUI();
   });
   articleUrl.addEventListener('input', () => {
+    urlCharCount.textContent = `${articleUrl.value.length} characters`;
     setActiveSource('url');
     resetLanguageVoiceToAuto();
     refreshSourceUI();
