@@ -8,38 +8,40 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #14141a;
-    --panel: #1c1c24;
-    --panel-edge: #2a2a35;
-    --ink: #e8e6e1;
-    --ink-dim: #8b8a94;
-    --signal: #e8a33d;
-    --signal-dim: #6b5327;
+    --bg: #1c1f1b;
+    --panel: #242822;
+    --panel-edge: #343a31;
+    --ink: #e6e6dd;
+    --ink-dim: #8b9182;
+    --signal: #93a97e;
+    --signal-hover: #a8c093;
+    --signal-dim: #4f5a45;
     --danger: #d9634f;
     --success: #5fbf77;
     --shadow: rgba(0,0,0,0.4);
-    --glow: rgba(232,163,61,0.06);
-    --input-bg: #101015;
+    --glow: rgba(147,169,126,0.05);
+    --input-bg: #20241f;
     /* Slightly lighter than --input-bg, so an inactive field visibly
        recedes toward the panel instead of just going semi-transparent. */
-    --input-bg-inactive: #1a1a20;
+    --input-bg-inactive: #292d26;
   }
 
   :root[data-theme="light"] {
-    --bg: #f3f1ea;
-    --panel: #ffffff;
-    --panel-edge: #ddd7c9;
-    --ink: #232025;
-    --ink-dim: #7a7568;
-    --signal: #b9700f;
-    --signal-dim: #e6c896;
+    --bg: #f2f1e9;
+    --panel: #fffdf8;
+    --panel-edge: #dedac9;
+    --ink: #2b2b26;
+    --ink-dim: #767065;
+    --signal: #6f8560;
+    --signal-hover: #5c7350;
+    --signal-dim: #c9d4bc;
     --danger: #b23a26;
     --success: #29804a;
-    --shadow: rgba(60,50,30,0.12);
-    --glow: rgba(185,112,15,0.08);
-    --input-bg: #f8f6f0;
+    --shadow: rgba(60,50,30,0.1);
+    --glow: rgba(111,133,96,0.07);
+    --input-bg: #f5f2e8;
     /* Slightly darker/greyer than --input-bg, mirroring the dark-mode intent. */
-    --input-bg-inactive: #ebe7dc;
+    --input-bg-inactive: #eae6d8;
   }
 
   * { box-sizing: border-box; }
@@ -62,7 +64,13 @@
   .console {
     width: 100%;
     max-width: 680px;
-    background: var(--panel);
+    background-color: var(--panel);
+    /* A very faint fractal-noise grain, layered over the flat panel color
+       via an inline SVG filter (no image asset needed) so the surface
+       reads as soft paper rather than sterile flat color. Kept subtle:
+       the rect's own opacity caps how strong the grain can get. */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/></svg>");
+    background-blend-mode: overlay;
     border: 1px solid var(--panel-edge);
     border-radius: 14px;
     padding: 28px;
@@ -132,6 +140,9 @@
   }
 
   .field-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.06em;
@@ -140,23 +151,52 @@
     transition: color 0.15s ease;
   }
 
+  /* A small solid dot next to the label doubles as an "active" badge that
+     doesn't rely on color alone -- it's a shape that's either filled or
+     hollow, so it still reads under color-shifting eyewear. */
+  .field-status::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1.5px solid var(--ink-dim);
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+
   .field-status.is-active { color: var(--signal); }
+  .field-status.is-active::before { background: var(--signal); border-color: var(--signal); }
+
+  /* A thicker rule directly above each field, filled in only for the
+     active one. Placed above the control (not just colored around it) so
+     the "which field is active" signal doesn't depend on noticing a
+     border-color change. */
+  .field-topline {
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+    background: var(--panel-edge);
+    transition: background-color 0.15s ease;
+  }
+  .field-topline.is-active { background: var(--signal); }
 
   textarea, input[type="text"].url-input {
     border-width: 1px;
     border-style: solid;
   }
 
-  /* Active vs. inactive field: a thicker, fully-saturated border plus a
+  /* Active vs. inactive field: a noticeably thicker border plus a
      background shift, so the difference reads at a glance in both themes
-     without relying on opacity alone (which also fades the text). */
+     from shape/thickness alone, not just from a color that may look
+     different under tinted lenses. */
   .field-active {
-    border-width: 2px !important;
+    border-width: 3px !important;
     border-color: var(--signal) !important;
   }
   .field-inactive {
     background: var(--input-bg-inactive) !important;
-    opacity: 0.7;
+    opacity: 0.75;
   }
 
   textarea {
@@ -287,7 +327,7 @@
 
   :root[data-theme="light"] .btn-primary { color: #fff8ee; }
 
-  .btn-primary:hover:not(:disabled) { background: #f0b25c; color: #14141a; }
+  .btn-primary:hover:not(:disabled) { background: var(--signal-hover); color: #14141a; }
 
   .btn-play {
     flex: 1;
@@ -425,6 +465,7 @@
     <label class="field-label" for="articleText">Paste text</label>
     <span id="textStatusTag" class="field-status">Active</span>
   </div>
+  <div id="textTopline" class="field-topline"></div>
   <textarea id="articleText" placeholder="Paste an article here... (up to about 10 minutes of speech)"></textarea>
   <div class="meta-row">
     <span id="charCount">0 characters</span>
@@ -437,6 +478,7 @@
     <label class="field-label" for="articleUrl">Paste a link</label>
     <span id="urlStatusTag" class="field-status">Inactive</span>
   </div>
+  <div id="urlTopline" class="field-topline"></div>
   <input id="articleUrl" type="text" class="url-input" placeholder="https://example.com/some-article">
   <div class="meta-row">
     <span id="urlCharCount">0 characters</span>
@@ -498,6 +540,8 @@
   const urlStatusTag = document.getElementById('urlStatusTag');
   const charCount = document.getElementById('charCount');
   const urlCharCount = document.getElementById('urlCharCount');
+  const textTopline = document.getElementById('textTopline');
+  const urlTopline = document.getElementById('urlTopline');
   const sourceIndicator = document.getElementById('sourceIndicator');
   const languageSelect = document.getElementById('languageSelect');
   const voiceSelect = document.getElementById('voiceSelect');
@@ -596,6 +640,8 @@
     articleText.classList.toggle('field-inactive', !textIsActive);
     articleUrl.classList.toggle('field-active', !textIsActive);
     articleUrl.classList.toggle('field-inactive', textIsActive);
+    textTopline.classList.toggle('is-active', textIsActive);
+    urlTopline.classList.toggle('is-active', !textIsActive);
 
     textStatusTag.textContent = textIsActive ? 'Active' : 'Inactive';
     textStatusTag.classList.toggle('is-active', textIsActive);
