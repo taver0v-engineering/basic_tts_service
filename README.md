@@ -72,7 +72,7 @@ python -m piper.download_voices hu_HU-imre-medium
 python -m piper.download_voices hu_HU-anna-medium
 
 # A few more languages worth knowing about (add matching Voice() entries
-# in backend/main.py if you download these):
+# in backend/voices.py if you download these):
 # Russian:    ru_RU-irina-medium, ru_RU-denis-medium
 # Swedish:    sv_SE-nst-medium
 # Danish:     da_DK-talesyntese-medium
@@ -102,7 +102,7 @@ present show up — you don't have to download all of them, just skip the ones
 you don't want).
 
 Each voice you download beyond the first also needs a matching `Voice(...)`
-entry added to the `VOICES` list in `backend/main.py` (a handful of common
+entry added to the `VOICES` list in `backend/voices.py` (a handful of common
 ones are already there) — copy the pattern for any extra voice/language you add.
 
 ## 2. Open the frontend
@@ -227,11 +227,11 @@ a note to the console — it never fails to start over a bad config file.
 - If you leave Language/Voice on "Auto", the backend runs language detection
   (`langdetect`) on the pasted text and picks the first downloaded voice that
   matches. If detection fails or no matching voice is downloaded, it falls
-  back to `DEFAULT_FALLBACK_VOICE_ID` in `backend/main.py` (English by default).
+  back to `DEFAULT_FALLBACK_VOICE_ID` in `backend/voices.py` (English by default).
 - Picking a specific voice from the dropdown skips detection entirely and
   uses exactly that voice.
 - Add more languages by downloading more voices (see above) and adding a
-  matching `Voice(...)` entry to the `VOICES` list in `backend/main.py`.
+  matching `Voice(...)` entry to the `VOICES` list in `backend/voices.py`.
 
 ## Converting from a link instead of pasted text
 
@@ -313,7 +313,7 @@ enforced *before* synthesis runs, not after:
 - Either way, the error message tells the user roughly how many characters
   to cut and to try again. The frontend displays that message as-is in the
   status line — no raw errors or stack traces reach the user.
-- `MAX_INPUT_CHARS` in `backend/main.py` (default 40,000) is a separate,
+- `MAX_INPUT_CHARS` in `backend/config.py` (default 40,000) is a separate,
   even cheaper upfront sanity check that rejects obviously-too-long pastes
   before even estimating.
 
