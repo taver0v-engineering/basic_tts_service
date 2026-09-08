@@ -1,0 +1,48 @@
+# Read Aloud -- Docker Compose setup.
+#
+# Quick start:
+#   docker compose up -d --build
+#   docker compose run --rm backend python -m piper.download_voices en_US-lessac-medium
+#   docker compose restart backend
+#   open http://localhost:8080          (optional frontend service, see below)
+#
+# See README.md ("Running with Docker") for the full walkthrough.
+
+services:
+  backend:
+    build: .
+    image: read-aloud-backend
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      # Must match the port half of the "ports" mapping above if you change it.
+      - PORT=${PORT:-8000}
+    volumes:
+      # Voice models persist here across image rebuilds. Populate it with:
+      #   docker compose run --rm backend python -m piper.download_voices <voice-id>
+      - ./models:/app/models
+      # Bind-mounted read-only so you can tweak config.json (environment,
+      # allowed_origins, max_audio_minutes, ...) without rebuilding the image.
+      - ./config.json:/app/config.json:ro
+    restart: unless-stopped
+
+  # Optional: serves frontend/index.html as a static file with stock nginx --
+  # no custom image needed. Remove this service if you'd rather open
+  # index.html directly, host it elsewhere, or serve it from a CDN.
+  #
+  # IMPORTANT: the "Backend URL" field the browser uses is baked into
+  # index.html as a plain default value (see the <input id="backendUrl">
+  # element) -- it is NOT resolved through this Compose network, because
+  # it's read by the user's browser, not by another container. If
+  # config.json's "environment" is "production" that field becomes fixed,
+  # so edit index.html's default Backend URL to your real, publicly
+  # reachable backend address *before* deploying it this way.
+  frontend:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    depends_on:
+      - backend
+    restart: unless-stopped

@@ -126,21 +126,24 @@
     color: var(--ink-dim);
   }
 
-  .clear-btn {
-    background: transparent;
-    border: none;
-    color: var(--ink-dim);
+  .field-status {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    cursor: pointer;
-    padding: 2px 4px;
-    display: none;
+    color: var(--ink-dim);
+    transition: color 0.15s ease;
   }
 
-  .clear-btn:hover { color: var(--danger); }
-  .clear-btn.visible { display: inline-block; }
+  .field-status.is-active { color: var(--signal); }
+
+  textarea, input[type="text"].url-input {
+    border-width: 1px;
+    border-style: solid;
+  }
+
+  .field-active { border-color: var(--signal-dim) !important; }
+  .field-inactive { opacity: 0.55; }
 
   textarea {
     width: 100%;
@@ -406,7 +409,7 @@
 
   <div class="field-header">
     <label class="field-label" for="articleText">Paste text</label>
-    <button id="clearTextBtn" class="clear-btn" type="button">Clear &#10005;</button>
+    <span id="textStatusTag" class="field-status">Active</span>
   </div>
   <textarea id="articleText" placeholder="Paste an article here... (up to about 10 minutes of speech)"></textarea>
   <div class="meta-row">
@@ -418,11 +421,11 @@
 
   <div class="field-header">
     <label class="field-label" for="articleUrl">Paste a link</label>
-    <button id="clearUrlBtn" class="clear-btn" type="button">Clear &#10005;</button>
+    <span id="urlStatusTag" class="field-status">Inactive</span>
   </div>
   <input id="articleUrl" type="text" class="url-input" placeholder="https://example.com/some-article">
 
-  <div id="sourceIndicator" class="source-indicator">No input yet — paste text above or a link</div>
+  <div id="sourceIndicator" class="source-indicator">Active: Text — click into either field above to switch which one Convert will use.</div>
 
   <div class="picker-row">
     <div class="picker">
@@ -474,8 +477,8 @@
 <script>
   const articleText = document.getElementById('articleText');
   const articleUrl = document.getElementById('articleUrl');
-  const clearTextBtn = document.getElementById('clearTextBtn');
-  const clearUrlBtn = document.getElementById('clearUrlBtn');
+  const textStatusTag = document.getElementById('textStatusTag');
+  const urlStatusTag = document.getElementById('urlStatusTag');
   const charCount = document.getElementById('charCount');
   const sourceIndicator = document.getElementById('sourceIndicator');
   const languageSelect = document.getElementById('languageSelect');
@@ -550,47 +553,70 @@
 
   initTheme();
 
-  // --- Source mode: text vs link, mutually exclusive but easy to switch ------
+  // --- Active source: text vs link, chosen by clicking into a field ----------
+  // Both fields can hold content at once; whichever was clicked/typed into
+  // most recently is "active" and is what Convert will use. The other field
+  // stays fully editable (so you can prep both), just visually dimmed.
 
-  function updateSourceMode() {
-    const hasText = articleText.value.trim().length > 0;
-    const hasUrl = articleUrl.value.trim().length > 0;
+  let activeSource = 'text'; // 'text' | 'url'
 
-    articleUrl.disabled = hasText;
-    articleText.disabled = hasUrl;
+  function setActiveSource(source) {
+    if (activeSource === source) return;
+    activeSource = source;
+    refreshSourceUI();
+  }
 
-    clearTextBtn.classList.toggle('visible', hasText);
-    clearUrlBtn.classList.toggle('visible', hasUrl);
+  function resetLanguageVoiceToAuto() {
+    languageSelect.value = 'auto';
+    updateVoiceOptions();
+  }
 
-    sourceIndicator.classList.toggle('active', hasText || hasUrl);
+  function refreshSourceUI() {
+    const textIsActive = activeSource === 'text';
 
-    if (hasUrl) {
-      sourceIndicator.textContent = 'Source: Link (article will be extracted from the page)';
-    } else if (hasText) {
-      sourceIndicator.textContent = 'Source: Text (pasted directly)';
+    articleText.classList.toggle('field-active', textIsActive);
+    articleText.classList.toggle('field-inactive', !textIsActive);
+    articleUrl.classList.toggle('field-active', !textIsActive);
+    articleUrl.classList.toggle('field-inactive', textIsActive);
+
+    textStatusTag.textContent = textIsActive ? 'Active' : 'Inactive';
+    textStatusTag.classList.toggle('is-active', textIsActive);
+    urlStatusTag.textContent = textIsActive ? 'Inactive' : 'Active';
+    urlStatusTag.classList.toggle('is-active', !textIsActive);
+
+    const activeField = textIsActive ? articleText : articleUrl;
+    const otherField = textIsActive ? articleUrl : articleText;
+    const activeLabel = textIsActive ? 'Text' : 'Link';
+    const activeHasContent = activeField.value.trim().length > 0;
+    const otherHasContent = otherField.value.trim().length > 0;
+
+    sourceIndicator.classList.toggle('active', activeHasContent);
+
+    if (activeHasContent) {
+      sourceIndicator.textContent = otherHasContent
+        ? `Active: ${activeLabel} — this is what Convert will use. The other field is inactive and won't be used.`
+        : `Active: ${activeLabel} — this is what Convert will use.`;
     } else {
-      sourceIndicator.textContent = 'No input yet — paste text above or a link';
+      sourceIndicator.textContent = `Active: ${activeLabel} — add content here, or click the other field to switch.`;
     }
   }
 
+  articleText.addEventListener('focus', () => setActiveSource('text'));
+  articleUrl.addEventListener('focus', () => setActiveSource('url'));
+
   articleText.addEventListener('input', () => {
     charCount.textContent = `${articleText.value.length} characters`;
-    updateSourceMode();
+    setActiveSource('text');
+    resetLanguageVoiceToAuto();
+    refreshSourceUI();
   });
-  articleUrl.addEventListener('input', updateSourceMode);
+  articleUrl.addEventListener('input', () => {
+    setActiveSource('url');
+    resetLanguageVoiceToAuto();
+    refreshSourceUI();
+  });
 
-  clearTextBtn.addEventListener('click', () => {
-    articleText.value = '';
-    charCount.textContent = '0 characters';
-    updateSourceMode();
-    articleText.focus();
-  });
-
-  clearUrlBtn.addEventListener('click', () => {
-    articleUrl.value = '';
-    updateSourceMode();
-    articleUrl.focus();
-  });
+  refreshSourceUI();
 
   // --- Status badge -----------------------------------------------------------
 
@@ -712,23 +738,26 @@
   }
 
   async function convert() {
-    const hasUrl = articleUrl.value.trim().length > 0;
-    const hasText = articleText.value.trim().length > 0;
+    const source = activeSource;
+    const text = articleText.value.trim();
+    const url = articleUrl.value.trim();
+    const activeContent = source === 'url' ? url : text;
+    const activeLabel = source === 'url' ? 'Link' : 'Text';
 
-    if (!hasUrl && !hasText) {
-      setStatus('Add some text or a link first.', 'error');
+    if (!activeContent) {
+      setStatus(`The active field (${activeLabel}) is empty. Add content there, or click the other field to switch.`, 'error');
       return;
     }
 
     resetPlayback();
     setConvertingUI(true);
     abortController = new AbortController();
-    startConvertTimer(hasUrl ? 'Fetching the article and converting to speech...' : 'Converting to speech...');
+    startConvertTimer(source === 'url' ? 'Fetching the article and converting to speech...' : 'Converting to speech...');
 
     const voiceId = voiceSelect.value || 'auto';
-    const payload = hasUrl
-      ? { url: articleUrl.value.trim(), voice_id: voiceId }
-      : { text: articleText.value.trim(), voice_id: voiceId };
+    const payload = source === 'url'
+      ? { url: url, voice_id: voiceId }
+      : { text: text, voice_id: voiceId };
 
     try {
       const response = await fetch(`${backendBase()}/synthesize`, {

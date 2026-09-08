@@ -1,0 +1,38 @@
+# Voice models are large and are mounted as a volume at runtime instead of
+# being baked into the image -- see compose.yaml.
+models/
+*.onnx
+*.onnx.json
+
+# Python cruft
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+
+# VCS / editor / OS noise
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Not needed inside the backend image
+README.md
+index.html
+compose.yaml
+compose.override.yaml
+docker-compose.yml
+.env
+.env.*
+!.env.example
+
+# Local test/output artifacts
+*.wav

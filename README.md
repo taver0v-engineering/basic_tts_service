@@ -1,8 +1,8 @@
 # Read Aloud
 
 A minimal, free, self-hosted text-to-speech reader:
-- **Backend** (`backend/`): FastAPI service that wraps [Piper TTS](https://github.com/OHF-Voice/piper1-gpl) (CPU-only, no GPU needed). Accepts either raw text or a URL (extracts the article server-side), supports multiple languages/voices, auto-detects the text's language when you don't pick one, and rejects text whose *estimated* speaking time is over a configurable cap (default 10 minutes) before running the (comparatively expensive) synthesis step. All of this is controlled by `backend/config.json`, read once at startup.
-- **Frontend** (`frontend/index.html`): paste an article *or* a link (mutually exclusive — whichever has content is the active source, with a one-click **Clear** next to each field to switch without deleting anything by hand), pick a language/voice (or leave on Auto), press **Convert** (or **Stop** to cancel mid-conversion), then once it's ready press **Play** (same button doubles as Pause) — plus Restart, skip ±10s/±30s, and a draggable seek bar to jump anywhere in the audio. A status indicator always shows whether conversion is in progress (with a live timer), ready (with the total conversion time), playing, cancelled, or failed. A theme toggle in the header switches between dark (default) and light; it follows your browser/OS preference automatically until you override it.
+- **Backend** (`backend/`): FastAPI service that wraps [Piper TTS](https://github.com/OHF-Voice/piper1-gpl) (CPU-only, no GPU needed). Accepts either raw text or a URL (extracts the article server-side), supports multiple languages/voices, auto-detects the text's language when you don't pick one, and rejects text whose *estimated* speaking time is over a configurable cap (default 10 minutes) before running the (comparatively expensive) synthesis step. All of this is controlled by `backend/config.json`, read once at startup. Runs in a venv or as a Docker container (see "Running with Docker" below).
+- **Frontend** (`frontend/index.html`): paste an article *and/or* a link — whichever field you click into (or type into) becomes the "active" one Convert will use, shown clearly on each field, so you never have to delete anything just to switch. Pick a language/voice (or leave on Auto — resets automatically whenever the active field's content changes), press **Convert** (or **Stop** to cancel mid-conversion), then once it's ready press **Play** (same button doubles as Pause) — plus Restart, skip ±10s/±30s, and a draggable seek bar to jump anywhere in the audio. A status indicator always shows whether conversion is in progress (with a live timer), ready (with the total conversion time), playing, cancelled, or failed. A theme toggle in the header switches between dark (default) and light; it follows your browser/OS preference automatically until you override it.
 
 ## 1. Run the backend locally
 
@@ -134,6 +134,65 @@ actual frontend origin instead of `"*"` before making it public, and set
 `"environment": "production"` (see below) so the frontend won't let anyone
 point it at a different backend.
 
+## 4. Running with Docker
+
+This repo includes a `Dockerfile`, `compose.yaml`, `.dockerignore`, and
+`.env.example` for the backend, if you'd rather run it as a container than
+in a venv. The image is built on Debian's official `python:3.12-slim-bookworm`
+— Debian is a fully free (DFSG) distribution, "slim" keeps the image small,
+and its glibc base means Piper's `onnxruntime` dependency and trafilatura's
+`lxml` dependency install as plain prebuilt wheels (no compiler needed,
+unlike an Alpine/musl base, which currently forces both to build from
+source).
+
+```bash
+# Build the image and start the backend
+docker compose up -d --build
+
+# Download at least one voice into the models/ volume (repeat per voice,
+# same IDs as the bare-metal instructions above)
+docker compose run --rm backend python -m piper.download_voices en_US-lessac-medium
+# -- or, using the bundled helper script for several at once --
+docker compose run --rm backend ./download-voices.sh en_US-lessac-medium en_GB-alan-medium
+
+# Pick up newly downloaded voices (piper.download_voices doesn't require a
+# restart to be seen by /voices, but it's a good habit to check /health)
+curl http://localhost:8000/health
+```
+
+A few things specific to the containerized setup:
+
+- **Networking**: the container always binds `0.0.0.0` internally regardless
+  of `host` in `config.json` — that's what makes the port mapping in
+  `compose.yaml` work. `config.json`'s `host`/`port` fields still matter for
+  local (non-Docker) `python main.py` runs and for the frontend's default
+  Backend URL, but don't need to match the container's internal bind
+  address.
+- **Port**: controlled by the `PORT` environment variable (default `8000`),
+  read by both the `ports` mapping and the container's `CMD` in
+  `compose.yaml`. Copy `.env.example` to `.env` and change `PORT` there to
+  use a different port — no need to edit `compose.yaml` or the `Dockerfile`.
+- **Models**: `./models` is bind-mounted into the container, so downloaded
+  voices persist across rebuilds/restarts instead of bloating the image.
+  Each voice you download still needs a matching `Voice(...)` entry in
+  `main.py`'s `VOICES` list (same as the bare-metal setup) — edit
+  `main.py` and re-run `docker compose up -d --build` to pick it up.
+- **Config**: `config.json` is bind-mounted read-only into the container, so
+  you can edit `environment`, `allowed_origins`, `max_audio_minutes`, etc.
+  and just `docker compose restart backend` — no rebuild needed.
+- **Frontend**: `compose.yaml` includes an optional `frontend` service that
+  serves `index.html` via stock `nginx:1.27-alpine` (no custom image, just a
+  bind mount) at `http://localhost:8080`. Remove that service if you'd
+  rather open `index.html` directly or host it elsewhere. Either way, if
+  you set `"environment": "production"`, the frontend's Backend URL field
+  becomes fixed at whatever default is baked into `index.html` — edit that
+  default (the `<input id="backendUrl">` element's `value`) to your real,
+  publicly reachable backend address *before* deploying it that way, since
+  the field can no longer be corrected from the browser.
+- **Health**: the image defines a `HEALTHCHECK` that calls `/health` with
+  Python's standard library (no `curl`/`wget` installed in the image),
+  visible via `docker ps` or `docker inspect`.
+
 ## Configuration (`backend/config.json`)
 
 The backend reads `config.json` (next to `main.py`) once at startup. If the
@@ -190,15 +249,21 @@ a note to the console — it never fails to start over a bad config file.
 
 ## Switching between text and a link
 
-- The frontend has two input fields: the text box and a URL box. They're
-  mutually exclusive — whichever has content disables the other — but you're
-  never forced to manually select-and-delete to switch: a small **Clear ✕**
-  button appears above whichever field is currently active, and clicking it
-  empties that field and immediately re-enables the other one.
-- The indicator below the fields ("Source: Text" / "Source: Link") is dim and
-  neutral when there's no input yet (including right after startup or right
-  after clearing a field), and only picks up an accent color once a source is
-  actually active — so an empty state never reads like something's wrong.
+- Both fields can hold content at the same time — they're no longer
+  mutually exclusive. Instead, whichever one you click into (or start
+  typing/pasting into) becomes the **active** field, and that's what
+  **Convert** will use; the other one stays fully editable (so you can
+  prep both in advance) but is visually dimmed and tagged **Inactive** to
+  make it obvious it'll be ignored. Switching is just a click — no need to
+  delete anything.
+- Whenever the active field's content changes, the Language and Voice
+  pickers reset back to **Auto**, since a voice/language chosen for one
+  piece of text may not fit newly pasted content.
+- The indicator below the fields (e.g. "Active: Text — this is what
+  Convert will use.") is dim and neutral by default, including right after
+  startup, and only picks up an accent color once the active field actually
+  has content ready to convert — so an empty state never reads like
+  something's wrong.
 
 ## Frontend playback controls
 
@@ -254,6 +319,11 @@ enforced *before* synthesis runs, not after:
 
 ## Notes
 
+- `requirements.txt` pins exact versions (rather than `>=` ranges) so both
+  the venv setup and the Docker image install the same, reproducible set of
+  packages. They were the latest stable releases compatible with Python 3.12
+  at the time this was put together; bump them deliberately (and re-test)
+  rather than letting them float.
 - Piper (`piper-tts`) is GPL-3.0 licensed. If you're distributing this whole
   project as open source, licensing your own code under GPL-3.0 keeps things
   simple and fully compatible.
