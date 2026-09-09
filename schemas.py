@@ -1,4 +1,8 @@
-"""Pydantic request models for the API."""
+"""Pydantic request and response models for the API.
+
+/synthesize has no response model here: it returns raw WAV bytes, not
+JSON, so there's no body shape for Pydantic to describe.
+"""
 
 from typing import Optional
 
@@ -19,3 +23,29 @@ class SynthesizeRequest(BaseModel):
 
 class ExtractRequest(BaseModel):
     url: str
+
+
+class HealthResponse(BaseModel):
+    status: str
+    voices_available: int
+
+
+class ConfigResponse(BaseModel):
+    environment: str
+    host: str
+    port: int
+    max_audio_minutes: float
+    default_theme: str
+
+
+class VoiceInfo(BaseModel):
+    id: str
+    language: str
+    language_label: str
+    label: str
+
+
+class ExtractResponse(BaseModel):
+    char_count: int
+    title: Optional[str]
+

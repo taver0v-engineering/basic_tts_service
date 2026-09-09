@@ -324,11 +324,22 @@ enforced *before* synthesis runs, not after:
 
 ## Notes
 
-- `requirements.txt` pins exact versions (rather than `>=` ranges) so both
-  the venv setup and the Docker image install the same, reproducible set of
-  packages. They were the latest stable releases compatible with Python 3.12
-  at the time this was put together; bump them deliberately (and re-test)
-  rather than letting them float.
+- `requirements.txt` uses unpinned/minimum-version constraints rather than
+  exact `==` pins, so `pip install -r requirements.txt` picks up the latest
+  compatible release of each package at install time. That's convenient for
+  staying current with upstream fixes, but it does mean the venv setup and
+  the Docker image aren't guaranteed to install byte-identical dependency
+  versions on two different days. If you need reproducible installs (e.g.
+  for a production deployment), generate a lockfile once you have a known-
+  good set of versions — `pip freeze > constraints.txt` and installing with
+  `pip install -r requirements.txt -c constraints.txt` is the simplest way
+  to do that without changing `requirements.txt` itself.
 - Piper (`piper-tts`) is GPL-3.0 licensed. If you're distributing this whole
   project as open source, licensing your own code under GPL-3.0 keeps things
   simple and fully compatible.
+- `frontend/favicon.svg` is a plain, hand-written SVG (no build step) linked
+  from `index.html`'s `<head>`. Modern Chrome, Firefox, and Safari all
+  support SVG favicons directly; if you need to support a browser that
+  doesn't, rasterize it once (e.g. `rsvg-convert favicon.svg -o favicon.png`
+  or any online SVG-to-PNG/ICO converter) and add a second `<link rel="icon">`
+  pointing at that file as a fallback.

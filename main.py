@@ -11,7 +11,7 @@ This module only wires the HTTP routes together; the actual logic lives in:
     voices.py   -- the voice catalog and voice selection
     article.py  -- URL -> article text extraction
     speech.py   -- length estimation/limits and running Piper
-    schemas.py  -- request models
+    schemas.py  -- request/response models
 
 Setup, configuration, and deployment notes are in README.md.
 
@@ -27,7 +27,14 @@ from fastapi.responses import Response
 
 from article import extract_article
 from config import ALLOWED_ORIGINS, CONFIG, DEFAULT_THEME, ENVIRONMENT, HOST, MAX_INPUT_CHARS, PORT
-from schemas import ExtractRequest, SynthesizeRequest
+from schemas import (
+    ConfigResponse,
+    ExtractRequest,
+    ExtractResponse,
+    HealthResponse,
+    SynthesizeRequest,
+    VoiceInfo,
+)
 from speech import MAX_AUDIO_SECONDS, estimate_duration_seconds, friendly_too_long_message, synthesize_with_piper
 from voices import available_voices, resolve_voice
 
@@ -41,7 +48,7 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
 def health():
     voices = available_voices()
     return {
@@ -50,7 +57,7 @@ def health():
     }
 
 
-@app.get("/config")
+@app.get("/config", response_model=ConfigResponse)
 def get_config():
     """Safe-to-expose subset of server config, used by the frontend to
     decide whether the Backend URL field should be editable and to pick a
@@ -65,7 +72,7 @@ def get_config():
     }
 
 
-@app.get("/voices")
+@app.get("/voices", response_model=list[VoiceInfo])
 def list_voices():
     """Voices the frontend can offer, grouped implicitly by language."""
     return [
@@ -79,7 +86,7 @@ def list_voices():
     ]
 
 
-@app.post("/extract")
+@app.post("/extract", response_model=ExtractResponse)
 def extract(req: ExtractRequest):
     """Fetch a URL and report the length of its extracted article text.
 
