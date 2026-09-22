@@ -148,6 +148,14 @@ trafilatura's `lxml` dependency install as plain prebuilt wheels (no
 compiler needed, unlike an Alpine/musl base, which currently forces both
 to build from source).
 
+Modify rights for these files on the host, before containerazition:
+```bash
+chmod 644 config.json      # rw-r--r--  (owner write, everyone read)
+chmod 644 index.html
+chmod 644 favicon.svg
+chmod 755 download-voices.sh   # rwxr-xr-x
+```
+
 ```bash
 # Build the image and start the backend
 docker compose up -d --build
@@ -209,9 +217,7 @@ A few things specific to the containerized setup:
   becomes fixed at whatever default is baked into `index.html` — edit that
   default (the `<input id="backendUrl">` element's `value`) to your real,
   publicly reachable backend address *before* deploying it that way, since
-  the field can no longer be corrected from the browser. On Podman, the
-  `index.html` file on the host also needs to be world-readable, or nginx
-  returns 403 Forbidden when it tries to serve it.
+  the field can no longer be corrected from the browser.
 - **Health**: the backend's healthcheck is defined in `compose.yaml` (a
   `healthcheck:` block calling `/health` with Python's standard library —
   no `curl`/`wget` needed), visible via `docker ps`/`podman ps` or

@@ -33,6 +33,8 @@ RUN pip install -r requirements.txt
 # rebuilding the image).
 COPY article.py config.py main.py schemas.py speech.py voices.py download-voices.sh config.json ./
 
+RUN chmod +x /app/download-voices.sh
+
 # Voice models (.onnx / .onnx.json) are downloaded separately -- see
 # README.md -- and are expected to live here. This is mounted as a volume
 # in compose.yaml so models persist across rebuilds instead of bloating the
