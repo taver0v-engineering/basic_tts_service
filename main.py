@@ -26,7 +26,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from article import extract_article
-from config import ALLOWED_ORIGINS, CONFIG, DEFAULT_THEME, ENVIRONMENT, HOST, MAX_INPUT_CHARS, PORT
+from config import (
+    ALLOWED_ORIGINS,
+    CONFIG,
+    DEFAULT_THEME,
+    ENVIRONMENT,
+    HOST,
+    MAX_INPUT_CHARS,
+    PORT,
+)
+from http_headers import safe_headers
 from schemas import (
     ConfigResponse,
     ExtractRequest,
@@ -35,7 +44,12 @@ from schemas import (
     SynthesizeRequest,
     VoiceInfo,
 )
-from speech import MAX_AUDIO_SECONDS, estimate_duration_seconds, friendly_too_long_message, synthesize_with_piper
+from speech import (
+    MAX_AUDIO_SECONDS,
+    estimate_duration_seconds,
+    friendly_too_long_message,
+    synthesize_with_piper,
+)
 from voices import available_voices, resolve_voice
 
 app = FastAPI(title="Read-Aloud TTS Backend")
@@ -131,7 +145,9 @@ async def synthesize(req: SynthesizeRequest, request: Request):
     if estimated_duration > MAX_AUDIO_SECONDS:
         raise HTTPException(
             status_code=413,
-            detail=friendly_too_long_message(estimated_duration, len(text), estimated=True),
+            detail=friendly_too_long_message(
+                estimated_duration, len(text), estimated=True
+            ),
         )
 
     voice, detected_lang = resolve_voice(req.voice_id, text)
@@ -140,15 +156,17 @@ async def synthesize(req: SynthesizeRequest, request: Request):
     return Response(
         content=result.audio_bytes,
         media_type="audio/wav",
-        headers={
-            "X-Audio-Duration-Seconds": f"{result.duration_seconds:.2f}",
-            "X-Conversion-Time-Seconds": f"{result.conversion_time_seconds:.2f}",
-            "X-Voice-Used": voice.id,
-            "X-Voice-Label": voice.label,
-            "X-Detected-Language": detected_lang or "",
-            "X-Source": source,
-            "X-Source-Title": title or "",
-        },
+        headers=safe_headers(
+            {
+                "X-Audio-Duration-Seconds": f"{result.duration_seconds:.2f}",
+                "X-Conversion-Time-Seconds": f"{result.conversion_time_seconds:.2f}",
+                "X-Voice-Used": voice.id,
+                "X-Voice-Label": voice.label,
+                "X-Detected-Language": detected_lang or "",
+                "X-Source": source,
+                "X-Source-Title": title or "",
+            }
+        ),
     )
 
 

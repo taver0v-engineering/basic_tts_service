@@ -3,6 +3,34 @@
 A minimal, free, self-hosted text-to-speech reader:
 - **Backend** (`backend/`): FastAPI service that wraps [Piper TTS](https://github.com/OHF-Voice/piper1-gpl) (CPU-only, no GPU needed). Accepts either raw text or a URL (extracts the article server-side), supports multiple languages/voices, auto-detects the text's language when you don't pick one, and rejects text whose *estimated* speaking time is over a configurable cap (default 10 minutes) before running the (comparatively expensive) synthesis step. All of this is controlled by `backend/config.json`, read once at startup. Runs in a venv or as a Docker container (see "Running with Docker" below).
 - **Frontend** (`frontend/index.html`): paste an article *and/or* a link — whichever field you click into (or type into) becomes the "active" one Convert will use, shown clearly on each field, so you never have to delete anything just to switch. Pick a language/voice (or leave on Auto — resets automatically whenever the active field's content changes), press **Convert** (or **Stop** to cancel mid-conversion), then once it's ready press **Play** (same button doubles as Pause) — plus Restart, skip ±10s/±30s, and a draggable seek bar to jump anywhere in the audio. A status indicator always shows whether conversion is in progress (with a live timer), ready (with the total conversion time), playing, cancelled, or failed. A theme toggle in the header switches between dark (default) and light; it follows your browser/OS preference automatically until you override it.
+ 
+
+## Table of Contents
+
+- [Read Aloud](#read-aloud)
+  - [Table of Contents](#table-of-contents)
+  - [1. Run the backend locally](#1-run-the-backend-locally)
+  - [2. Open the frontend](#2-open-the-frontend)
+  - [3. Running with Docker (or Podman)](#3-running-with-docker-or-podman)
+  - [Configuration (`backend/config.json`)](#configuration-backendconfigjson)
+  - [How language/voice selection works](#how-languagevoice-selection-works)
+  - [Converting from a link instead of pasted text](#converting-from-a-link-instead-of-pasted-text)
+  - [Switching between text and a link](#switching-between-text-and-a-link)
+  - [Frontend playback controls](#frontend-playback-controls)
+  - [Theme](#theme)
+  - [The speaking-time limit](#the-speaking-time-limit)
+  - [Notes](#notes)
+  - [Licensing](#licensing)
+    - [⚠️ Voice models are licensed separately — read this before commercial use](#️-voice-models-are-licensed-separately--read-this-before-commercial-use)
+    - [Voice license summary for the voices shipped in `voices.py`](#voice-license-summary-for-the-voices-shipped-in-voicespy)
+    - [If you just want a commercially safe set](#if-you-just-want-a-commercially-safe-set)
+    - [Contributing](#contributing)
+  - [Licensing](#licensing-1)
+    - [⚠️ Voice models are licensed separately — read this before commercial use](#️-voice-models-are-licensed-separately--read-this-before-commercial-use-1)
+    - [Voice license summary for the voices shipped in `voices.py`](#voice-license-summary-for-the-voices-shipped-in-voicespy-1)
+    - [If you just want a commercially safe set](#if-you-just-want-a-commercially-safe-set-1)
+    - [Contributing](#contributing-1)
+
 
 ## 1. Run the backend locally
 
@@ -115,26 +143,7 @@ That field is only editable when the backend's `environment` is `"test"`; in
 `"production"` it's fixed and shown read-only, based on what `GET /config`
 reports.
 
-## 3. Deploying the backend for free
-
-Piper is lightweight (no GPU, small model, low RAM), so it fits comfortably on:
-
-- **Hugging Face Spaces (Docker, CPU Basic)** — 2 vCPU / 16GB RAM, free forever,
-  sleeps after 48h of inactivity. Easiest path: create a Space, add a
-  `Dockerfile` that installs `requirements.txt`, downloads the voice model at
-  build time, and runs `uvicorn main:app --host 0.0.0.0 --port 7860`.
-- **Render (free web service)** — 512MB RAM, free, sleeps after 15 minutes of
-  inactivity (a few seconds to wake up).
-- **Oracle Cloud Always Free (Ampere A1 VM)** — a real always-on VPS, no sleep,
-  ARM architecture (Piper supports ARM/aarch64 fine). Best option if you want
-  zero cold-start delay for users.
-
-Whichever you pick, update `allowed_origins` in `backend/config.json` to your
-actual frontend origin instead of `"*"` before making it public, and set
-`"environment": "production"` (see below) so the frontend won't let anyone
-point it at a different backend.
-
-## 4. Running with Docker (or Podman)
+## 3. Running with Docker (or Podman)
 
 This repo includes a `Dockerfile`, `compose.yaml`, `.dockerignore`, and
 `.env.example` for the backend, if you'd rather run it as a container than
@@ -378,3 +387,156 @@ enforced *before* synthesis runs, not after:
   doesn't, rasterize it once (e.g. `rsvg-convert favicon.svg -o favicon.png`
   or any online SVG-to-PNG/ICO converter) and add a second `<link rel="icon">`
   pointing at that file as a fallback.
+- **Custom response headers are ASCII-encoded by convention.** Any header
+  value derived from user input or library metadata (article titles, voice
+  labels) can contain arbitrary Unicode, which Starlette rejects at
+  response time (`UnicodeEncodeError: 'latin-1' codec can't encode ...`)
+  *after* synthesis has already run. To prevent that class of bug, every
+  custom header on a response is built via `safe_headers()` in
+  `backend/http_headers.py`, which percent-encodes values to pure ASCII;
+  the frontend decodes each one with `decodeURIComponent` via its
+  `readHeader()` helper. **Add new headers by extending the dict passed to
+  `safe_headers()`, not by setting them elsewhere** — that's what keeps the
+  guarantee total rather than per-call-site.
+
+## Licensing
+
+This project is released under the **GNU General Public License v3.0 (GPL-3.0)**. See the [`LICENSE`](LICENSE) file for the full text.
+
+**What that means in practice:** you are free to use, study, modify, and redistribute this software — including for commercial purposes and including as part of a paid product or service. The condition is that if you *distribute* the software (or a modified version of it) to others, you must do so under the same GPL-3.0 terms and make the complete corresponding source code available. Running it privately, or offering it as a hosted service without shipping the code to users, does not by itself trigger that obligation. This is the same copyleft model used by Linux, WordPress, and countless other projects, and it is fully compatible with commercial use.
+
+This project depends on [Piper TTS](https://github.com/OHF-Voice/piper1-gpl), which is itself GPL-3.0 licensed. That is the main reason this project is GPL-3.0 rather than MIT/Apache — we cannot offer more permissive terms than the engine we build on.
+
+A full list of third-party dependencies and their licenses is in [`LICENSE-THIRD-PARTY.md`](LICENSE-THIRD-PARTY.md). Full license texts are in the [`LICENSES/`](LICENSES/) directory.
+
+### ⚠️ Voice models are licensed separately — read this before commercial use
+
+**This project does not bundle, ship, or redistribute any voice models.** You download them yourself with `python -m piper.download_voices <name>` (or the equivalent Docker command). This is deliberate, and it matters:
+
+- **The Piper *engine*** is GPL-3.0.
+- **The Piper *voice models*** are *separate works* with **their own licenses**, and those licenses are **not uniform**. They range from public-domain (CC0), through permissive attribution licenses (CC-BY, MIT, Apache-2.0), to **non-commercial licenses (CC-BY-NC, CC-BY-NC-SA) that forbid commercial use entirely**.
+
+**You are responsible for checking the license of each voice you download before using it** — especially if you intend to use this app commercially, ship it inside a product, or offer it as a paid service. Downloading a voice and using it does not grant you any rights the voice's own license withholds.
+
+The authoritative source for a given voice's license is its `MODEL_CARD` file in the upstream voices repository:
+
+> **https://huggingface.co/rhasspy/piper-voices**
+
+Each voice folder there contains a `MODEL_CARD` file that lists the license and the dataset it was trained on. That is the source of truth; anything in this project (including the table below) is a convenience summary, not a legal statement.
+
+### Voice license summary for the voices shipped in `voices.py`
+
+The table below summarizes what we currently believe about each voice's license. **It is provided as a starting point only, and may become out of date as upstream voices are re-licensed, renamed, or replaced.** Verify against the `MODEL_CARD` before relying on it, particularly for commercial use.
+
+| Voice ID | Language | License | Commercial use |
+| :--- | :--- | :--- | :--- |
+| `en_US-lessac-medium` | English (US) | MIT | ✅ Yes |
+| `en_US-amy-medium` | English (US) | Apache-2.0 | ✅ Yes |
+| `en_US-libritts_r-medium` | English (US) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_US-ryan-medium` | English (US) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_US-kristin-medium` | English (US) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_GB-alan-medium` | English (UK) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_GB-vctk-medium` | English (UK) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_GB-northern_english_male-medium` | English (UK) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `de_DE-thorsten-medium` | German | CC0-1.0 | ✅ Yes |
+| `de_DE-eva_k-x_low` | German | BSD-style (M-AILABS) | ✅ Yes |
+| `de_DE-kerstin-low` | German | CC0-1.0 | ✅ Yes |
+| `de_DE-ramona-low` | German | BSD-style (M-AILABS) | ✅ Yes |
+| `fr_FR-siwis-medium` | French | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `fr_FR-gilles-low` | French | CC0-1.0 | ✅ Yes |
+| `fr_FR-upmc-medium` | French | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `es_ES-davefx-medium` | Spanish | CC0-1.0 | ✅ Yes |
+| `es_ES-carlfm-x_low` | Spanish | CC0-1.0 | ✅ Yes |
+| `es_MX-ald-medium` | Spanish (MX) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `it_IT-riccardo-x_low` | Italian | MIT | ✅ Yes |
+| `it_IT-paola-medium` | Italian | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `pt_BR-faber-medium` | Portuguese (BR) | CC0-1.0 | ✅ Yes |
+| `pt_BR-edresson-low` | Portuguese (BR) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `pt_PT-tugao-medium` | Portuguese (PT) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `nl_NL-mls-medium` | Dutch | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `nl_BE-nathalie-medium` | Dutch (BE) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `pl_PL-darkman-medium` | Polish | CC0-1.0 | ✅ Yes |
+| `pl_PL-gosia-medium` | Polish | CC0-1.0 | ✅ Yes |
+| `hu_HU-imre-medium` | Hungarian | CC0-1.0 | ✅ Yes |
+| `hu_HU-anna-medium` | Hungarian | CC0-1.0 | ✅ Yes |
+
+**Voices to avoid if you need commercial use:** any voice whose `MODEL_CARD` says `CC-BY-NC`, `CC-BY-NC-SA`, `CC-BY-NC-ND`, or similar. None of the voices listed in `voices.py` above fall into this category as of this writing, but the upstream catalog does contain such voices — check before adding new ones.
+
+### If you just want a commercially safe set
+
+If you don't want to audit voice licenses one by one, stick to the CC0 and MIT voices in the table above (e.g. `en_US-lessac-medium`, `de_DE-thorsten-medium`, `fr_FR-gilles-low`, `es_ES-davefx-medium`, `it_IT-riccardo-x_low`, `pl_PL-darkman-medium`, `hu_HU-imre-medium`). These have no attribution requirement and no commercial restriction. The CC-BY voices are also fine for commercial use, but require you to preserve attribution to the voice's original creator somewhere in your product or distribution.
+
+### Contributing
+
+By submitting a pull request, you agree that your contribution may be distributed under the project's GPL-3.0 license. If you add a new voice to `voices.py`, please also add its license to the table above (and to `LICENSE-THIRD-PARTY.md`) so the project's licensing documentation stays accurate.
+
+## Licensing
+
+This project is released under the **GNU General Public License v3.0 (GPL-3.0)**. See the [`LICENSE`](LICENSE) file for the full text.
+
+**What that means in practice:** you are free to use, study, modify, and redistribute this software — including for commercial purposes and including as part of a paid product or service. The condition is that if you *distribute* the software (or a modified version of it) to others, you must do so under the same GPL-3.0 terms and make the complete corresponding source code available. Running it privately, or offering it as a hosted service without shipping the code to users, does not by itself trigger that obligation. This is the same copyleft model used by Linux, WordPress, and countless other projects, and it is fully compatible with commercial use.
+
+This project depends on [Piper TTS](https://github.com/OHF-Voice/piper1-gpl), which is itself GPL-3.0 licensed. That is the main reason this project is GPL-3.0 rather than MIT/Apache — we cannot offer more permissive terms than the engine we build on.
+
+A full list of third-party dependencies and their licenses is in [`LICENSE-THIRD-PARTY.md`](LICENSE-THIRD-PARTY.md). Full license texts are in the [`LICENSES/`](LICENSES/) directory.
+
+### ⚠️ Voice models are licensed separately — read this before commercial use
+
+**This project does not bundle, ship, or redistribute any voice models.** You download them yourself with `python -m piper.download_voices <name>` (or the equivalent Docker command). This is deliberate, and it matters:
+
+- **The Piper *engine*** is GPL-3.0.
+- **The Piper *voice models*** are *separate works* with **their own licenses**, and those licenses are **not uniform**. They range from public-domain (CC0), through permissive attribution licenses (CC-BY, MIT, Apache-2.0), to **non-commercial licenses (CC-BY-NC, CC-BY-NC-SA) that forbid commercial use entirely**.
+
+**You are responsible for checking the license of each voice you download before using it** — especially if you intend to use this app commercially, ship it inside a product, or offer it as a paid service. Downloading a voice and using it does not grant you any rights the voice's own license withholds.
+
+The authoritative source for a given voice's license is its `MODEL_CARD` file in the upstream voices repository:
+
+> **https://huggingface.co/rhasspy/piper-voices**
+
+Each voice folder there contains a `MODEL_CARD` file that lists the license and the dataset it was trained on. That is the source of truth; anything in this project (including the table below) is a convenience summary, not a legal statement.
+
+### Voice license summary for the voices shipped in `voices.py`
+
+The table below summarizes what we currently believe about each voice's license. **It is provided as a starting point only, and may become out of date as upstream voices are re-licensed, renamed, or replaced.** Verify against the `MODEL_CARD` before relying on it, particularly for commercial use.
+
+| Voice ID | Language | License | Commercial use |
+| :--- | :--- | :--- | :--- |
+| `en_US-lessac-medium` | English (US) | MIT | ✅ Yes |
+| `en_US-amy-medium` | English (US) | Apache-2.0 | ✅ Yes |
+| `en_US-libritts_r-medium` | English (US) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_US-ryan-medium` | English (US) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_US-kristin-medium` | English (US) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_GB-alan-medium` | English (UK) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_GB-vctk-medium` | English (UK) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `en_GB-northern_english_male-medium` | English (UK) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `de_DE-thorsten-medium` | German | CC0-1.0 | ✅ Yes |
+| `de_DE-eva_k-x_low` | German | BSD-style (M-AILABS) | ✅ Yes |
+| `de_DE-kerstin-low` | German | CC0-1.0 | ✅ Yes |
+| `de_DE-ramona-low` | German | BSD-style (M-AILABS) | ✅ Yes |
+| `fr_FR-siwis-medium` | French | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `fr_FR-gilles-low` | French | CC0-1.0 | ✅ Yes |
+| `fr_FR-upmc-medium` | French | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `es_ES-davefx-medium` | Spanish | CC0-1.0 | ✅ Yes |
+| `es_ES-carlfm-x_low` | Spanish | CC0-1.0 | ✅ Yes |
+| `es_MX-ald-medium` | Spanish (MX) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `it_IT-riccardo-x_low` | Italian | MIT | ✅ Yes |
+| `it_IT-paola-medium` | Italian | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `pt_BR-faber-medium` | Portuguese (BR) | CC0-1.0 | ✅ Yes |
+| `pt_BR-edresson-low` | Portuguese (BR) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `pt_PT-tugao-medium` | Portuguese (PT) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `nl_NL-mls-medium` | Dutch | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `nl_BE-nathalie-medium` | Dutch (BE) | CC-BY-4.0 | ✅ Yes (with attribution) |
+| `pl_PL-darkman-medium` | Polish | CC0-1.0 | ✅ Yes |
+| `pl_PL-gosia-medium` | Polish | CC0-1.0 | ✅ Yes |
+| `hu_HU-imre-medium` | Hungarian | CC0-1.0 | ✅ Yes |
+| `hu_HU-anna-medium` | Hungarian | CC0-1.0 | ✅ Yes |
+
+**Voices to avoid if you need commercial use:** any voice whose `MODEL_CARD` says `CC-BY-NC`, `CC-BY-NC-SA`, `CC-BY-NC-ND`, or similar. None of the voices listed in `voices.py` above fall into this category as of this writing, but the upstream catalog does contain such voices — check before adding new ones.
+
+### If you just want a commercially safe set
+
+If you don't want to audit voice licenses one by one, stick to the CC0 and MIT voices in the table above (e.g. `en_US-lessac-medium`, `de_DE-thorsten-medium`, `fr_FR-gilles-low`, `es_ES-davefx-medium`, `it_IT-riccardo-x_low`, `pl_PL-darkman-medium`, `hu_HU-imre-medium`). These have no attribution requirement and no commercial restriction. The CC-BY voices are also fine for commercial use, but require you to preserve attribution to the voice's original creator somewhere in your product or distribution.
+
+### Contributing
+
+By submitting a pull request, you agree that your contribution may be distributed under the project's GPL-3.0 license. If you add a new voice to `voices.py`, please also add its license to the table above (and to `LICENSE-THIRD-PARTY.md`) so the project's licensing documentation stays accurate.

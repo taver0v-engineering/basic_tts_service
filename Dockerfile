@@ -31,7 +31,7 @@ RUN pip install -r requirements.txt
 # Application code and the default config (config.json can still be
 # overridden at runtime with a bind mount -- see compose.yaml -- without
 # rebuilding the image).
-COPY article.py config.py main.py schemas.py speech.py voices.py download-voices.sh config.json ./
+COPY article.py config.py http_headers.py main.py schemas.py speech.py voices.py download-voices.sh config.json ./
 
 RUN chmod +x /app/download-voices.sh
 

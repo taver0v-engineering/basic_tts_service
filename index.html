@@ -477,7 +477,6 @@
   <div class="console-header">
     <h1>Read Aloud</h1>
     <div class="header-right">
-      <span class="tag">// text &rarr; speech</span>
       <button id="themeToggle" class="theme-toggle" type="button" title="Toggle light/dark theme">&#127769;</button>
     </div>
   </div>
@@ -599,6 +598,21 @@
 
   function backendBase() {
     return backendUrlInput.value.replace(/\/+$/, '');
+  }
+
+  // Every custom header the backend sets goes through safe_headers()
+  // (backend/http_headers.py), which percent-encodes values to ASCII.
+  // Decode here so callers see the original text. Falls back to the raw
+  // value if it isn't a valid escape sequence (e.g. a header injected by
+  // a proxy) rather than throwing and killing the conversion.
+  function readHeader(response, name) {
+    const raw = response.headers.get(name);
+    if (raw == null) return null;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
   }
 
   // --- Theme: follow the browser by default, manual toggle overrides ---------
@@ -911,11 +925,11 @@
         throw new Error(problem.detail || `Server returned ${response.status}`);
       }
 
-      const voiceLabel = response.headers.get('X-Voice-Label') || 'default voice';
-      const detectedLang = response.headers.get('X-Detected-Language');
-      const sourceTitle = response.headers.get('X-Source-Title');
-      const durationHeader = parseFloat(response.headers.get('X-Audio-Duration-Seconds') || '0');
-      const serverConversionTime = parseFloat(response.headers.get('X-Conversion-Time-Seconds') || '');
+      const voiceLabel = readHeader(response, 'X-Voice-Label') || 'default voice';
+      const detectedLang = readHeader(response, 'X-Detected-Language');
+      const sourceTitle = readHeader(response, 'X-Source-Title');
+      const durationHeader = parseFloat(readHeader(response, 'X-Audio-Duration-Seconds') || '0');
+      const serverConversionTime = parseFloat(readHeader(response, 'X-Conversion-Time-Seconds') || '');
 
       const blob = await response.blob();
       const totalConvertSeconds = stopConvertTimer();
