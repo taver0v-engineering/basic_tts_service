@@ -19,7 +19,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PORT=8000
+    PORT=8000 \
+    MODELS_DIR=models
 
 WORKDIR /app
 
@@ -30,7 +31,7 @@ RUN pip install -r requirements.txt
 # Application code and the default config (config.json can still be
 # overridden at runtime with a bind mount -- see compose.yaml -- without
 # rebuilding the image).
-COPY main.py config.json ./
+COPY article.py config.py main.py schemas.py speech.py voices.py download-voices.sh config.json ./
 
 # Voice models (.onnx / .onnx.json) are downloaded separately -- see
 # README.md -- and are expected to live here. This is mounted as a volume
@@ -46,9 +47,16 @@ USER readaloud
 
 EXPOSE 8000
 
-# Plain stdlib HTTP call -- no curl/wget needed in the image just for this.
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD python3 -c "import os,sys,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT','8000') + '/health', timeout=2)" || exit 1
+# No HEALTHCHECK instruction here on purpose. Baking one into the image
+# only works with Docker's own image manifest format -- Podman defaults to
+# building OCI-format images, which have no slot for image-level
+# HEALTHCHECK metadata at all (Podman just warns and silently drops it
+# during build: "HEALTHCHECK is not supported for OCI image format").
+# The equivalent check is defined instead in compose.yaml's `healthcheck:`
+# key, which both `docker compose` and Podman apply at container *run*
+# time (translated to plain --health-cmd/--health-interval flags) rather
+# than needing to be embedded in the image -- one definition, no warning,
+# works under both tools.
 
 # Always bind 0.0.0.0 inside the container -- that's what makes the
 # published/mapped port reachable -- regardless of the "host" value in

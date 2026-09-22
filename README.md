@@ -134,31 +134,52 @@ actual frontend origin instead of `"*"` before making it public, and set
 `"environment": "production"` (see below) so the frontend won't let anyone
 point it at a different backend.
 
-## 4. Running with Docker
+## 4. Running with Docker (or Podman)
 
 This repo includes a `Dockerfile`, `compose.yaml`, `.dockerignore`, and
 `.env.example` for the backend, if you'd rather run it as a container than
-in a venv. The image is built on Debian's official `python:3.12-slim-bookworm`
-— Debian is a fully free (DFSG) distribution, "slim" keeps the image small,
-and its glibc base means Piper's `onnxruntime` dependency and trafilatura's
-`lxml` dependency install as plain prebuilt wheels (no compiler needed,
-unlike an Alpine/musl base, which currently forces both to build from
-source).
+in a venv. Everything below works the same under Docker and Podman --
+swap the `docker` binary for `podman` in any command that isn't
+`docker compose`, and use `podman compose` in place of `docker compose`.
+The image is built on Debian's official `python:3.12-slim-bookworm` —
+Debian is a fully free (DFSG) distribution, "slim" keeps the image small,
+and its glibc base means Piper's `onnxruntime` dependency and
+trafilatura's `lxml` dependency install as plain prebuilt wheels (no
+compiler needed, unlike an Alpine/musl base, which currently forces both
+to build from source).
 
 ```bash
 # Build the image and start the backend
 docker compose up -d --build
 
 # Download at least one voice into the models/ volume (repeat per voice,
-# same IDs as the bare-metal instructions above)
-docker compose run --rm backend python -m piper.download_voices en_US-lessac-medium
+# same IDs as the bare-metal instructions above). This calls the built
+# image directly with `run` rather than `docker compose run` -- see the
+# Podman note below for why -- but works identically under Docker.
+docker run --rm -v ./models:/app/models:Z read-aloud-backend \
+  python -m piper.download_voices --data-dir models en_US-lessac-medium
+
 # -- or, using the bundled helper script for several at once --
-docker compose run --rm backend ./download-voices.sh en_US-lessac-medium en_GB-alan-medium
+docker run --rm -v ./models:/app/models:Z read-aloud-backend \
+  ./download-voices.sh en_US-lessac-medium en_GB-alan-medium
 
 # Pick up newly downloaded voices (piper.download_voices doesn't require a
 # restart to be seen by /voices, but it's a good habit to check /health)
 curl http://localhost:8000/health
 ```
+
+> **Podman note:** the voice-download step above intentionally uses
+> `docker run`/`podman run` directly against the already-built
+> `read-aloud-backend` image, instead of `docker compose run --rm backend
+> ...`. Podman's Compose emulation shells out to the classic Python
+> `docker-compose` tool for `run`, which still issues legacy container
+> `--link` flags for the service; Podman rejects these with `bad
+> parameter: link is not supported`. Calling the image directly with
+> plain `run` sidesteps that path entirely and is otherwise the same
+> command either way. Only the long-running `backend`/`frontend` services
+> are started through `compose up`, which doesn't hit this issue. The
+> `:Z` suffix on the volume mount is an SELinux-relabeling option
+> supported by both Docker and Podman; it's a no-op on non-SELinux hosts.
 
 A few things specific to the containerized setup:
 
@@ -175,8 +196,8 @@ A few things specific to the containerized setup:
 - **Models**: `./models` is bind-mounted into the container, so downloaded
   voices persist across rebuilds/restarts instead of bloating the image.
   Each voice you download still needs a matching `Voice(...)` entry in
-  `main.py`'s `VOICES` list (same as the bare-metal setup) — edit
-  `main.py` and re-run `docker compose up -d --build` to pick it up.
+  `voices.py`'s `VOICES` list (same as the bare-metal setup) — edit
+  `voices.py` and re-run `docker compose up -d --build` to pick it up.
 - **Config**: `config.json` is bind-mounted read-only into the container, so
   you can edit `environment`, `allowed_origins`, `max_audio_minutes`, etc.
   and just `docker compose restart backend` — no rebuild needed.
@@ -188,10 +209,18 @@ A few things specific to the containerized setup:
   becomes fixed at whatever default is baked into `index.html` — edit that
   default (the `<input id="backendUrl">` element's `value`) to your real,
   publicly reachable backend address *before* deploying it that way, since
-  the field can no longer be corrected from the browser.
-- **Health**: the image defines a `HEALTHCHECK` that calls `/health` with
-  Python's standard library (no `curl`/`wget` installed in the image),
-  visible via `docker ps` or `docker inspect`.
+  the field can no longer be corrected from the browser. On Podman, the
+  `index.html` file on the host also needs to be world-readable, or nginx
+  returns 403 Forbidden when it tries to serve it.
+- **Health**: the backend's healthcheck is defined in `compose.yaml` (a
+  `healthcheck:` block calling `/health` with Python's standard library —
+  no `curl`/`wget` needed), visible via `docker ps`/`podman ps` or
+  `docker inspect`/`podman inspect`. It's defined at the Compose level
+  rather than as a Dockerfile `HEALTHCHECK` instruction on purpose: Podman
+  builds images in OCI format by default, which has no slot for an
+  image-level `HEALTHCHECK` at all (Podman just warns and drops it during
+  build) — defining it in `compose.yaml` instead applies it at
+  container-run time, which both tools support identically.
 
 ## Configuration (`backend/config.json`)
 
@@ -328,7 +357,7 @@ enforced *before* synthesis runs, not after:
   exact `==` pins, so `pip install -r requirements.txt` picks up the latest
   compatible release of each package at install time. That's convenient for
   staying current with upstream fixes, but it does mean the venv setup and
-  the Docker image aren't guaranteed to install byte-identical dependency
+  the Docker image are guaranteed to install byte-identical dependency
   versions on two different days. If you need reproducible installs (e.g.
   for a production deployment), generate a lockfile once you have a known-
   good set of versions — `pip freeze > constraints.txt` and installing with
