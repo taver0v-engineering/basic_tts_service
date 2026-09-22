@@ -1,8 +1,16 @@
+
 # Read Aloud
+
+
 
 A minimal, free, self-hosted text-to-speech reader: turn articles, essays, or any pasted text into audio you can play right in the browser. Paste text or a link, pick a voice (or let it auto-detect the language), and listen — no accounts, no cloud, no GPU required.
 
 Built with a **FastAPI** backend wrapping **[Piper TTS](https://github.com/OHF-Voice/piper1-gpl)** (CPU-only) and a single self-contained HTML frontend with no build step.
+
+
+https://github.com/user-attachments/assets/5cb53f4f-67de-4a78-9901-1577788c9e19
+
+
 
 - **Backend** (`backend/`): FastAPI service that wraps Piper TTS. Accepts either raw text or a URL (extracts the article server-side), supports multiple languages/voices, auto-detects the text's language when you don't pick one, and rejects text whose *estimated* speaking time is over a configurable cap (default 10 minutes) before running the (comparatively expensive) synthesis step. All of this is controlled by `backend/config.json`, read once at startup. Runs in a venv or as a Docker container (see "Running with Docker" below).
 - **Frontend** (`frontend/index.html`): paste an article *and/or* a link — whichever field you click into (or type into) becomes the "active" one Convert will use, shown clearly on each field, so you never have to delete anything just to switch. Pick a language/voice (or leave on Auto — resets automatically whenever the active field's content changes), press **Convert** (or **Stop** to cancel mid-conversion), then once it's ready press **Play** (same button doubles as Pause) — plus Restart, skip ±10s/±30s, and a draggable seek bar to jump anywhere in the audio. A status indicator always shows whether conversion is in progress (with a live timer), ready (with the total conversion time), playing, cancelled, or failed. A theme toggle in the header switches between dark (default) and light; it follows your browser/OS preference automatically until you override it.
