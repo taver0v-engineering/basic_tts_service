@@ -1,0 +1,11 @@
+version = 1
+
+[[annotations]]
+path = "Dockerfile"
+SPDX-FileCopyrightText = "2026 taver0v-engineering"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = "config.json"
+SPDX-FileCopyrightText = "2026 taver0v-engineering"
+SPDX-License-Identifier = "GPL-3.0-only"

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 taver0v-engineering
+
 """Fetching a URL and pulling out its main, readable article text."""
 
 from typing import Optional

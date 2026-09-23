@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 taver0v-engineering
+
 """Pydantic request and response models for the API.
 
 /synthesize has no response model here: it returns raw WAV bytes, not
@@ -12,7 +15,9 @@ from pydantic import BaseModel, model_validator
 class SynthesizeRequest(BaseModel):
     text: Optional[str] = None
     url: Optional[str] = None
-    voice_id: Optional[str] = None  # None or "auto" -> detect language and pick a matching voice
+    voice_id: Optional[str] = (
+        None  # None or "auto" -> detect language and pick a matching voice
+    )
 
     @model_validator(mode="after")
     def check_one_source(self):
@@ -48,4 +53,3 @@ class VoiceInfo(BaseModel):
 class ExtractResponse(BaseModel):
     char_count: int
     title: Optional[str]
-
