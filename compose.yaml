@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: 2026 taver0v-engineering
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Read Aloud -- Docker Compose setup.
+#
+# Quick start:
+#   docker compose up -d --build
+#   docker run --rm -v ./models:/app/models:Z read-aloud-backend \
+#     python -m piper.download_voices --data-dir models en_US-lessac-medium
+#   open http://localhost:8080          (optional frontend service, see below)
+#
+# Works the same under Podman -- swap `docker` for `podman` in the commands
+# above, and use `podman compose` in place of `docker compose`. See
+# README.md ("Running with Docker") for the full walkthrough, including
+# why voice downloads use a direct `run` instead of `compose run`.
+
+services:
+  backend:
+    build: .
+    image: read-aloud-backend
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      # Must match the port half of the "ports" mapping above if you change it.
+      - PORT=${PORT:-8000}
+    volumes:
+      # Voice models persist here across image rebuilds. Populate it with
+      # `docker run` (or `podman run`) directly against this image -- see
+      # README.md -- rather than `compose run`.
+      - ./models:/app/models
+      # Bind-mounted read-only so you can tweak config.json (environment,
+      # allowed_origins, max_audio_minutes, ...) without rebuilding the image.
+      - ./config.json:/app/config.json:ro
+    # Defined here, applied at container-run time, rather than as a
+    # Dockerfile HEALTHCHECK instruction -- Podman's default OCI image
+    # format doesn't support that instruction at all and would just warn
+    # and drop it during build. This form works identically under
+    # `docker compose` and Podman's compose emulation. Plain stdlib HTTP
+    # call -- no curl/wget needed in the image just for this.
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT','8000') + '/health', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Optional: serves frontend/index.html as a static file with stock nginx --
+  # no custom image needed. Remove this service if you'd rather open
+  # index.html directly, host it elsewhere, or serve it from a CDN.
+  #
+  # IMPORTANT: the "Backend URL" field the browser uses is baked into
+  # index.html as a plain default value (see the <input id="backendUrl">
+  # element) -- it is NOT resolved through this Compose network, because
+  # it's read by the user's browser, not by another container. If
+  # config.json's "environment" is "production" that field becomes fixed,
+  # so edit index.html's default Backend URL to your real, publicly
+  # reachable backend address *before* deploying it that way.
+  # index.html on the host must have read rights for everyone, otherwise
+  # when the container is running under Podman, nginx returns 403
+  # Forbidden; the frontend container log will show permission denied for
+  # getting index.html.
+  frontend:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./favicon.svg:/usr/share/nginx/html/favicon.svg:ro
+    depends_on:
+      - backend
+    restart: unless-stopped

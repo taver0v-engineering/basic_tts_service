@@ -1,0 +1,1047 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-only
+Copyright (C) 2026 taver0v-engineering
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Read Aloud</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1c1f1b;
+    --panel: #242822;
+    --panel-edge: #343a31;
+    --ink: #e6e6dd;
+    --ink-dim: #8b9182;
+    --signal: #93a97e;
+    --signal-hover: #a8c093;
+    --signal-dim: #4f5a45;
+    --danger: #d9634f;
+    --success: #4da893;
+    --success-tint: rgba(77,168,147,0.14);
+    --shadow: rgba(0,0,0,0.4);
+    --glow: rgba(147,169,126,0.05);
+    --input-bg: #20241f;
+    /* Slightly lighter than --input-bg, so an inactive field visibly
+       recedes toward the panel instead of just going semi-transparent. */
+    --input-bg-inactive: #292d26;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f2f1e9;
+    --panel: #fffdf8;
+    --panel-edge: #dedac9;
+    --ink: #2b2b26;
+    --ink-dim: #767065;
+    --signal: #6f8560;
+    --signal-hover: #5c7350;
+    --signal-dim: #c9d4bc;
+    --danger: #b23a26;
+    --success: #2f7d68;
+    --success-tint: rgba(47,125,104,0.1);
+    --shadow: rgba(60,50,30,0.1);
+    --glow: rgba(111,133,96,0.07);
+    --input-bg: #f5f2e8;
+    /* Slightly darker/greyer than --input-bg, mirroring the dark-mode intent. */
+    --input-bg-inactive: #eae6d8;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 15% 10%, var(--glow), transparent 40%),
+      var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .console {
+    width: 100%;
+    max-width: 680px;
+    background-color: var(--panel);
+    /* A very faint fractal-noise grain, layered over the flat panel color
+       via an inline SVG filter (no image asset needed) so the surface
+       reads as soft paper rather than sterile flat color. Kept subtle:
+       the rect's own opacity caps how strong the grain can get. */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/></svg>");
+    background-blend-mode: overlay;
+    border: 1px solid var(--panel-edge);
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 20px 60px var(--shadow);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .console-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
+  }
+
+  .console-header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .console-header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.05em;
+  }
+
+  .theme-toggle {
+    background: transparent;
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    color: var(--ink-dim);
+    font-size: 14px;
+    line-height: 1;
+    padding: 6px 9px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .theme-toggle:hover { border-color: var(--signal); color: var(--signal); }
+
+  .field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  label.field-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  .field-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    transition: color 0.15s ease;
+  }
+
+  /* A small solid dot next to the label doubles as an "active" badge that
+     doesn't rely on color alone -- it's a shape that's either filled or
+     hollow, so it still reads under color-shifting eyewear. */
+  .field-status::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1.5px solid var(--ink-dim);
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .field-status.is-active { color: var(--signal); }
+  .field-status.is-active::before { background: var(--signal); border-color: var(--signal); }
+
+  /* A thicker rule directly above each field, filled in only for the
+     active one. Placed above the control (not just colored around it) so
+     the "which field is active" signal doesn't depend on noticing a
+     border-color change. */
+  .field-topline {
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+    background: var(--panel-edge);
+    transition: background-color 0.15s ease;
+  }
+  .field-topline.is-active { background: var(--signal); }
+
+  textarea, input[type="text"].url-input {
+    border-width: 1px;
+    border-style: solid;
+  }
+
+  /* Active vs. inactive field: a noticeably thicker border plus a
+     background shift, so the difference reads at a glance in both themes
+     from shape/thickness alone, not just from a color that may look
+     different under tinted lenses. */
+  .field-active {
+    border-width: 3px !important;
+    border-color: var(--signal) !important;
+  }
+  .field-inactive {
+    background: var(--input-bg-inactive) !important;
+    opacity: 0.75;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 180px;
+    background: var(--input-bg);
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 16px;
+    resize: vertical;
+    transition: opacity 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  textarea:focus { outline: none; border-color: var(--signal-dim); }
+  textarea::placeholder { color: var(--ink-dim); }
+  textarea:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 6px;
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--panel-edge);
+  }
+
+  input[type="text"].url-input {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 12px 14px;
+    transition: opacity 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  input[type="text"].url-input:focus { outline: none; border-color: var(--signal-dim); }
+  input[type="text"].url-input:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .source-indicator {
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--ink-dim);
+    transition: color 0.15s ease;
+  }
+
+  .source-indicator.active { color: var(--signal); }
+
+  .picker-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .picker { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+
+  select {
+    background: var(--input-bg);
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  select:focus { outline: none; border-color: var(--signal-dim); }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 8px;
+    border: 1px solid var(--panel-edge);
+    background: transparent;
+    color: var(--ink);
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    white-space: nowrap;
+  }
+
+  button:hover:not(:disabled) { border-color: var(--signal); color: var(--signal); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-primary {
+    background: var(--signal);
+    color: #14141a;
+    border-color: var(--signal);
+    flex: 1;
+  }
+
+  :root[data-theme="light"] .btn-primary { color: #fff8ee; }
+
+  .btn-primary:hover:not(:disabled) { background: var(--signal-hover); color: #14141a; }
+
+  .btn-play {
+    flex: 1;
+    border-color: var(--success);
+    color: var(--success);
+  }
+
+  .btn-play:hover:not(:disabled) { background: var(--success-tint); }
+
+  .btn-stop {
+    flex: 1;
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .btn-stop:hover:not(:disabled) { background: rgba(217,99,79,0.12); }
+
+  .btn-icon { padding: 10px 12px; font-size: 13px; }
+
+  /* --- status badge --- */
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--panel-edge);
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--ink-dim);
+  }
+
+  /* "Converting" uses the brand accent (sage) since it's a distinct,
+     pre-playback phase. Everything from here on -- ready, playing,
+     paused, finished -- is "the player is active" and shares one teal,
+     so it doesn't flicker between two different greens while in use. */
+  .dot.state-converting { background: var(--signal); animation: pulse 1s ease-in-out infinite; }
+  .dot.state-ready { background: var(--success); }
+  .dot.state-playing { background: var(--success); animation: pulse 1s ease-in-out infinite; }
+  .dot.state-error { background: var(--danger); }
+  .dot.state-cancelled { background: var(--ink-dim); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .status { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-dim); flex: 1; }
+  .status.error { color: var(--danger); }
+  .status.ready { color: var(--success); }
+  .status.playing { color: var(--success); }
+
+  /* Details of the last successful conversion (voice, language, timing).
+     Unlike .status, this doesn't get overwritten by play/pause/ended --
+     it persists until the next conversion starts, or the input changes,
+     so it isn't lost just from pressing Play. Collapses to no space when
+     empty via :empty rather than needing a JS show/hide toggle. */
+  .conversion-info {
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+  }
+  .conversion-info:empty { display: none; }
+
+  /* --- seek bar --- */
+  .seek-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+
+  .time-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    width: 42px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--panel-edge);
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--signal);
+    cursor: pointer;
+    border: none;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--signal);
+    cursor: pointer;
+    border: none;
+  }
+
+  input[type="range"]:disabled::-webkit-slider-thumb { background: var(--panel-edge); }
+
+  .skip-row { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+
+  .settings {
+    margin-top: 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+  }
+
+  .settings input[type="text"] {
+    width: 100%;
+    margin-top: 6px;
+    background: var(--input-bg);
+    border: 1px solid var(--panel-edge);
+    border-radius: 6px;
+    color: var(--ink-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+
+  .settings input[type="text"]:focus { outline: none; border-color: var(--signal-dim); color: var(--ink); }
+  .settings input[type="text"]:disabled { opacity: 0.6; cursor: not-allowed; }
+  .settings .settings-note { margin-top: 4px; font-size: 10px; }
+</style>
+</head>
+<body>
+
+<div class="console">
+  <div class="console-header">
+    <h1>Read Aloud</h1>
+    <div class="header-right">
+      <button id="themeToggle" class="theme-toggle" type="button" title="Toggle light/dark theme">&#127769;</button>
+    </div>
+  </div>
+
+  <div class="field-header">
+    <label class="field-label" for="articleText">Paste text</label>
+    <span id="textStatusTag" class="field-status">Active</span>
+  </div>
+  <div id="textTopline" class="field-topline"></div>
+  <textarea id="articleText" placeholder="Paste an article here... (up to about 10 minutes of speech)"></textarea>
+  <div class="meta-row">
+    <span id="charCount">0 characters</span>
+    <span>max ~10 minutes of audio per conversion</span>
+  </div>
+
+  <div class="divider">or</div>
+
+  <div class="field-header">
+    <label class="field-label" for="articleUrl">Paste a link</label>
+    <span id="urlStatusTag" class="field-status">Inactive</span>
+  </div>
+  <div id="urlTopline" class="field-topline"></div>
+  <input id="articleUrl" type="text" class="url-input" placeholder="https://example.com/some-article">
+  <div class="meta-row">
+    <span id="urlCharCount">0 characters</span>
+  </div>
+
+  <div id="sourceIndicator" class="source-indicator">Active: Text — click into either field above to switch which one Convert will use.</div>
+
+  <div class="picker-row">
+    <div class="picker">
+      <label class="field-label" for="languageSelect">Language</label>
+      <select id="languageSelect">
+        <option value="auto">Auto (detect from text)</option>
+      </select>
+    </div>
+    <div class="picker">
+      <label class="field-label" for="voiceSelect">Voice</label>
+      <select id="voiceSelect">
+        <option value="auto">Auto</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="convertBtn" class="btn-primary">Convert</button>
+    <button id="stopBtn" class="btn-stop" type="button" style="display:none;">&#9632; Stop</button>
+    <button id="playBtn" class="btn-play" disabled>&#9654; Play</button>
+  </div>
+
+  <div class="status-badge">
+    <span id="statusDot" class="dot state-idle"></span>
+    <span id="status" class="status">Idle — add text or a link, then press Convert</span>
+  </div>
+  <div id="conversionInfo" class="conversion-info"></div>
+
+  <div class="seek-row">
+    <span id="elapsedLabel" class="time-label">0:00</span>
+    <input id="seekBar" type="range" min="0" max="100" value="0" step="1" disabled>
+    <span id="totalLabel" class="time-label">0:00</span>
+  </div>
+
+  <div class="skip-row">
+    <button id="restartBtn" class="btn-icon" disabled title="Restart from the beginning">&#8634; Restart</button>
+    <button id="back30Btn" class="btn-icon" disabled>&laquo; 30s</button>
+    <button id="back10Btn" class="btn-icon" disabled>&laquo; 10s</button>
+    <button id="fwd10Btn" class="btn-icon" disabled>10s &raquo;</button>
+    <button id="fwd30Btn" class="btn-icon" disabled>30s &raquo;</button>
+  </div>
+
+  <div class="settings">
+    Backend URL
+    <input id="backendUrl" type="text" value="http://localhost:8000">
+    <div id="backendUrlNote" class="settings-note"></div>
+  </div>
+</div>
+
+<script>
+  const articleText = document.getElementById('articleText');
+  const articleUrl = document.getElementById('articleUrl');
+  const textStatusTag = document.getElementById('textStatusTag');
+  const urlStatusTag = document.getElementById('urlStatusTag');
+  const charCount = document.getElementById('charCount');
+  const urlCharCount = document.getElementById('urlCharCount');
+  const textTopline = document.getElementById('textTopline');
+  const urlTopline = document.getElementById('urlTopline');
+  const sourceIndicator = document.getElementById('sourceIndicator');
+  const languageSelect = document.getElementById('languageSelect');
+  const voiceSelect = document.getElementById('voiceSelect');
+  const convertBtn = document.getElementById('convertBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const playBtn = document.getElementById('playBtn');
+  const statusEl = document.getElementById('status');
+  const statusDot = document.getElementById('statusDot');
+  const conversionInfo = document.getElementById('conversionInfo');
+  const backendUrlInput = document.getElementById('backendUrl');
+  const backendUrlNote = document.getElementById('backendUrlNote');
+  const themeToggle = document.getElementById('themeToggle');
+
+  const seekBar = document.getElementById('seekBar');
+  const elapsedLabel = document.getElementById('elapsedLabel');
+  const totalLabel = document.getElementById('totalLabel');
+  const restartBtn = document.getElementById('restartBtn');
+  const back30Btn = document.getElementById('back30Btn');
+  const back10Btn = document.getElementById('back10Btn');
+  const fwd10Btn = document.getElementById('fwd10Btn');
+  const fwd30Btn = document.getElementById('fwd30Btn');
+
+  let audio = null;
+  let objectUrl = null;
+  let allVoices = [];
+  let isSeeking = false;
+  let abortController = null;
+  let convertTimerInterval = null;
+  let convertStartedAt = null;
+  let convertBaseMessage = '';
+  let urlCheckTimer = null;
+  let urlCheckController = null;
+
+  function backendBase() {
+    return backendUrlInput.value.replace(/\/+$/, '');
+  }
+
+  // Every custom header the backend sets goes through safe_headers()
+  // (backend/http_headers.py), which percent-encodes values to ASCII.
+  // Decode here so callers see the original text. Falls back to the raw
+  // value if it isn't a valid escape sequence (e.g. a header injected by
+  // a proxy) rather than throwing and killing the conversion.
+  function readHeader(response, name) {
+    const raw = response.headers.get(name);
+    if (raw == null) return null;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+
+  // --- Theme: follow the browser by default, manual toggle overrides ---------
+
+  const THEME_STORAGE_KEY = 'read-aloud-theme';
+  const supportsColorScheme = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').media !== 'not all');
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+    themeToggle.textContent = theme === 'light' ? '\u2600\ufe0f' : '\ud83c\udf19';
+  }
+
+  function initTheme() {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark') {
+      applyTheme(stored);
+      return;
+    }
+    if (supportsColorScheme) {
+      const mql = window.matchMedia('(prefers-color-scheme: light)');
+      applyTheme(mql.matches ? 'light' : 'dark');
+      mql.addEventListener('change', (e) => {
+        // Keep following the OS as long as the user hasn't manually chosen.
+        if (!localStorage.getItem(THEME_STORAGE_KEY)) {
+          applyTheme(e.matches ? 'light' : 'dark');
+        }
+      });
+    } else {
+      applyTheme('dark'); // may be overridden by config's default_theme once loaded
+    }
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'light' ? 'dark' : 'light';
+    localStorage.setItem(THEME_STORAGE_KEY, next);
+    applyTheme(next);
+  });
+
+  initTheme();
+
+  // --- Active source: text vs link, chosen by clicking into a field ----------
+  // Both fields can hold content at once; whichever was clicked/typed into
+  // most recently is "active" and is what Convert will use. The other field
+  // stays fully editable (so you can prep both), just visually dimmed.
+
+  let activeSource = 'text'; // 'text' | 'url'
+
+  function setActiveSource(source) {
+    if (activeSource === source) return;
+    activeSource = source;
+    refreshSourceUI();
+  }
+
+  function resetLanguageVoiceToAuto() {
+    languageSelect.value = 'auto';
+    updateVoiceOptions();
+  }
+
+  function refreshSourceUI() {
+    const textIsActive = activeSource === 'text';
+
+    articleText.classList.toggle('field-active', textIsActive);
+    articleText.classList.toggle('field-inactive', !textIsActive);
+    articleUrl.classList.toggle('field-active', !textIsActive);
+    articleUrl.classList.toggle('field-inactive', textIsActive);
+    textTopline.classList.toggle('is-active', textIsActive);
+    urlTopline.classList.toggle('is-active', !textIsActive);
+
+    textStatusTag.textContent = textIsActive ? 'Active' : 'Inactive';
+    textStatusTag.classList.toggle('is-active', textIsActive);
+    urlStatusTag.textContent = textIsActive ? 'Inactive' : 'Active';
+    urlStatusTag.classList.toggle('is-active', !textIsActive);
+
+    const activeField = textIsActive ? articleText : articleUrl;
+    const otherField = textIsActive ? articleUrl : articleText;
+    const activeLabel = textIsActive ? 'Text' : 'Link';
+    const activeHasContent = activeField.value.trim().length > 0;
+    const otherHasContent = otherField.value.trim().length > 0;
+
+    // Always colored: which field is active is useful to know whether or
+    // not it has content yet, so this shouldn't fade just because it's empty.
+    sourceIndicator.classList.add('active');
+
+    if (activeHasContent) {
+      sourceIndicator.textContent = otherHasContent
+        ? `Active: ${activeLabel} — this is what Convert will use. The other field is inactive and won't be used.`
+        : `Active: ${activeLabel} — this is what Convert will use.`;
+    } else {
+      sourceIndicator.textContent = `Active: ${activeLabel} — add content here, or click the other field to switch.`;
+    }
+  }
+
+  articleText.addEventListener('focus', () => setActiveSource('text'));
+  articleUrl.addEventListener('focus', () => setActiveSource('url'));
+
+  articleText.addEventListener('input', () => {
+    charCount.textContent = `${articleText.value.length} characters`;
+    setActiveSource('text');
+    resetLanguageVoiceToAuto();
+    conversionInfo.textContent = '';
+    refreshSourceUI();
+  });
+  articleUrl.addEventListener('input', () => {
+    scheduleUrlLengthCheck();
+    setActiveSource('url');
+    resetLanguageVoiceToAuto();
+    conversionInfo.textContent = '';
+    refreshSourceUI();
+  });
+
+  refreshSourceUI();
+
+  // --- Status badge -----------------------------------------------------------
+
+  function setStatus(message, state = 'idle') {
+    // state: idle | converting | ready | playing | error | cancelled
+    statusEl.textContent = message;
+    statusEl.classList.toggle('error', state === 'error');
+    statusEl.classList.toggle('ready', state === 'ready');
+    statusEl.classList.toggle('playing', state === 'playing');
+    statusDot.className = `dot state-${state}`;
+  }
+
+  function formatTime(seconds) {
+    if (!isFinite(seconds) || seconds < 0) seconds = 0;
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // --- Link length check -------------------------------------------------------
+  // The URL string itself isn't a useful character count -- what matters is
+  // the length of the article it points to, which only the backend can know
+  // (it has to fetch and extract the page). Debounced so we don't fire a
+  // fetch on every keystroke while someone is still typing/pasting the URL.
+
+  function scheduleUrlLengthCheck() {
+    clearTimeout(urlCheckTimer);
+    if (urlCheckController) urlCheckController.abort();
+
+    const url = articleUrl.value.trim();
+    if (!url) {
+      urlCharCount.textContent = '0 characters';
+      return;
+    }
+
+    urlCharCount.textContent = 'Checking link…';
+    urlCheckTimer = setTimeout(() => checkUrlLength(url), 700);
+  }
+
+  async function checkUrlLength(url) {
+    urlCheckController = new AbortController();
+    try {
+      const res = await fetch(`${backendBase()}/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+        signal: urlCheckController.signal,
+      });
+      if (!res.ok) {
+        const problem = await res.json().catch(() => ({}));
+        throw new Error(problem.detail || `status ${res.status}`);
+      }
+      const data = await res.json();
+      // The field may have changed again while this request was in flight.
+      if (articleUrl.value.trim() !== url) return;
+      urlCharCount.textContent = `${data.char_count} characters (extracted from link)`;
+    } catch (err) {
+      if (err.name === 'AbortError') return; // superseded by a newer check
+      urlCharCount.textContent = `Could not check link length (${err.message})`;
+    }
+  }
+
+  // --- Load available voices/languages ---------------------------------------
+
+  async function loadVoices() {
+    try {
+      const res = await fetch(`${backendBase()}/voices`);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      allVoices = await res.json();
+
+      const languages = [...new Map(allVoices.map(v => [v.language, v.language_label])).entries()];
+      languageSelect.innerHTML = '<option value="auto">Auto (detect from text)</option>' +
+        languages.map(([code, label]) => `<option value="${code}">${label}</option>`).join('');
+
+      updateVoiceOptions();
+    } catch (err) {
+      setStatus(`Could not load voice list from backend (${err.message}). Check the Backend URL below.`, 'error');
+    }
+  }
+
+  function updateVoiceOptions() {
+    const lang = languageSelect.value;
+    const matching = lang === 'auto' ? allVoices : allVoices.filter(v => v.language === lang);
+    voiceSelect.innerHTML = (lang === 'auto' ? '<option value="auto">Auto</option>' : '') +
+      matching.map(v => `<option value="${v.id}">${v.label}</option>`).join('');
+  }
+
+  languageSelect.addEventListener('change', updateVoiceOptions);
+
+  // --- Server config: testing mode + fallback theme -------------------
+
+  async function loadServerConfig() {
+    try {
+      const res = await fetch(`${backendBase()}/config`);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const cfg = await res.json();
+
+      if (!cfg.testing) {
+        backendUrlInput.disabled = true;
+        backendUrlNote.textContent = 'Fixed by the server (production mode).';
+      } else {
+        backendUrlInput.disabled = false;
+        backendUrlNote.textContent = '';
+      }
+
+      // Only used as a last resort, when the browser can't tell us its own
+      // preference and the user hasn't manually picked a theme yet.
+      if (!supportsColorScheme && !localStorage.getItem(THEME_STORAGE_KEY) && cfg.default_theme) {
+        applyTheme(cfg.default_theme);
+      }
+    } catch (err) {
+      // The backend may simply not be reachable yet (e.g. not started, or a
+      // wrong Backend URL); the user can still edit it manually and retry,
+      // so this stays quiet rather than surfacing as an error.
+    }
+  }
+
+  // --- Playback state ----------------------------------------------------------
+
+  function resetPlayback() {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+    }
+    audio = null;
+    playBtn.disabled = true;
+    playBtn.innerHTML = '&#9654; Play';
+    [restartBtn, back30Btn, back10Btn, fwd10Btn, fwd30Btn].forEach(b => b.disabled = true);
+    seekBar.disabled = true;
+    seekBar.value = 0;
+    elapsedLabel.textContent = '0:00';
+    totalLabel.textContent = '0:00';
+  }
+
+  function startConvertTimer(baseMessage) {
+    convertBaseMessage = baseMessage;
+    convertStartedAt = performance.now();
+    convertTimerInterval = setInterval(() => {
+      const elapsed = (performance.now() - convertStartedAt) / 1000;
+      setStatus(`${convertBaseMessage} (${elapsed.toFixed(1)}s)`, 'converting');
+    }, 100);
+  }
+
+  function stopConvertTimer() {
+    if (convertTimerInterval) {
+      clearInterval(convertTimerInterval);
+      convertTimerInterval = null;
+    }
+    if (convertStartedAt == null) return 0;
+    const elapsed = (performance.now() - convertStartedAt) / 1000;
+    convertStartedAt = null;
+    return elapsed;
+  }
+
+  function setConvertingUI(isConverting) {
+    convertBtn.style.display = isConverting ? 'none' : '';
+    stopBtn.style.display = isConverting ? '' : 'none';
+    convertBtn.disabled = isConverting;
+  }
+
+  async function convert() {
+    const source = activeSource;
+    const text = articleText.value.trim();
+    const url = articleUrl.value.trim();
+    const activeContent = source === 'url' ? url : text;
+    const activeLabel = source === 'url' ? 'Link' : 'Text';
+
+    if (!activeContent) {
+      setStatus(`The active field (${activeLabel}) is empty. Add content there, or click the other field to switch.`, 'error');
+      return;
+    }
+
+    resetPlayback();
+    conversionInfo.textContent = ''; // clears once the *next* conversion starts, not before
+    setConvertingUI(true);
+    abortController = new AbortController();
+    startConvertTimer(source === 'url' ? 'Fetching the article and converting to speech...' : 'Converting to speech...');
+
+    const voiceId = voiceSelect.value || 'auto';
+    const payload = source === 'url'
+      ? { url: url, voice_id: voiceId }
+      : { text: text, voice_id: voiceId };
+
+    try {
+      const response = await fetch(`${backendBase()}/synthesize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        const problem = await response.json().catch(() => ({}));
+        throw new Error(problem.detail || `Server returned ${response.status}`);
+      }
+
+      const voiceLabel = readHeader(response, 'X-Voice-Label') || 'default voice';
+      const detectedLang = readHeader(response, 'X-Detected-Language');
+      const sourceTitle = readHeader(response, 'X-Source-Title');
+      const durationHeader = parseFloat(readHeader(response, 'X-Audio-Duration-Seconds') || '0');
+      const serverConversionTime = parseFloat(readHeader(response, 'X-Conversion-Time-Seconds') || '');
+
+      const blob = await response.blob();
+      const totalConvertSeconds = stopConvertTimer();
+      objectUrl = URL.createObjectURL(blob);
+      audio = new Audio(objectUrl);
+
+      audio.addEventListener('loadedmetadata', () => {
+        const total = isFinite(audio.duration) ? audio.duration : durationHeader;
+        seekBar.max = Math.floor(total);
+        totalLabel.textContent = formatTime(total);
+        seekBar.disabled = false;
+        playBtn.disabled = false;
+        [restartBtn, back30Btn, back10Btn, fwd10Btn, fwd30Btn].forEach(b => b.disabled = false);
+
+        const langNote = detectedLang ? ` (detected: ${detectedLang})` : '';
+        const titleNote = sourceTitle ? ` — "${sourceTitle}"` : '';
+        const timeNote = isFinite(serverConversionTime)
+          ? ` — converted in ${serverConversionTime.toFixed(1)}s`
+          : ` — converted in ${totalConvertSeconds.toFixed(1)}s`;
+        conversionInfo.textContent = `${voiceLabel}${langNote}${titleNote}${timeNote}`;
+        setStatus('Ready to play.', 'ready');
+      });
+
+      audio.addEventListener('timeupdate', () => {
+        if (isSeeking) return;
+        seekBar.value = Math.floor(audio.currentTime);
+        elapsedLabel.textContent = formatTime(audio.currentTime);
+      });
+
+      audio.addEventListener('play', () => {
+        playBtn.innerHTML = '&#10074;&#10074; Pause';
+        setStatus('Playing...', 'playing');
+      });
+      audio.addEventListener('pause', () => {
+        if (audio && audio.currentTime < audio.duration) {
+          playBtn.innerHTML = '&#9654; Play';
+          setStatus('Paused.', 'ready');
+        }
+      });
+      audio.addEventListener('ended', () => {
+        playBtn.innerHTML = '&#9654; Play';
+        setStatus('Finished playing.', 'ready');
+      });
+    } catch (err) {
+      stopConvertTimer();
+      if (err.name === 'AbortError') {
+        setStatus('Conversion stopped.', 'cancelled');
+      } else {
+        setStatus(err.message, 'error');
+      }
+    } finally {
+      setConvertingUI(false);
+      abortController = null;
+    }
+  }
+
+  function stopConversion() {
+    if (abortController) {
+      abortController.abort();
+    }
+  }
+
+  function togglePlay() {
+    if (!audio) return;
+    if (audio.paused) {
+      audio.play();
+    } else {
+      audio.pause();
+    }
+  }
+
+  function seekBy(deltaSeconds) {
+    if (!audio) return;
+    const target = Math.min(Math.max(audio.currentTime + deltaSeconds, 0), audio.duration || 0);
+    audio.currentTime = target;
+    seekBar.value = Math.floor(target);
+    elapsedLabel.textContent = formatTime(target);
+  }
+
+  function restart() {
+    if (!audio) return;
+    audio.currentTime = 0;
+    seekBar.value = 0;
+    elapsedLabel.textContent = '0:00';
+    audio.play();
+  }
+
+  seekBar.addEventListener('input', () => {
+    isSeeking = true;
+    elapsedLabel.textContent = formatTime(parseFloat(seekBar.value));
+  });
+  seekBar.addEventListener('change', () => {
+    if (audio) audio.currentTime = parseFloat(seekBar.value);
+    isSeeking = false;
+  });
+
+  convertBtn.addEventListener('click', convert);
+  stopBtn.addEventListener('click', stopConversion);
+  playBtn.addEventListener('click', togglePlay);
+  restartBtn.addEventListener('click', restart);
+  back30Btn.addEventListener('click', () => seekBy(-30));
+  back10Btn.addEventListener('click', () => seekBy(-10));
+  fwd10Btn.addEventListener('click', () => seekBy(10));
+  fwd30Btn.addEventListener('click', () => seekBy(30));
+
+  loadVoices();
+  loadServerConfig();
+</script>
+
+</body>
+</html>
