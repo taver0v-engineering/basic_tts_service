@@ -31,7 +31,7 @@ class HealthResponse(BaseModel):
 
 
 class ConfigResponse(BaseModel):
-    environment: str
+    testing: bool
     host: str
     port: int
     max_audio_minutes: float

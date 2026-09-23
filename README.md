@@ -3,7 +3,7 @@
 
 
 
-A minimal, free, self-hosted text-to-speech reader: turn articles, essays, or any pasted text into audio you can play right in the browser. Paste text or a link, pick a voice (or let it auto-detect the language), and listen — no accounts, no cloud, no GPU required.
+A minimal, open-source, self-hosted text-to-speech reader: turn articles, essays, or any pasted text into audio you can play right in the browser. Paste text or a link, pick a voice (or let it auto-detect the language), and listen — no accounts, no cloud, no GPU required.
 
 Built with a **FastAPI** backend wrapping **[Piper TTS](https://github.com/OHF-Voice/piper1-gpl)** (CPU-only) and a single self-contained HTML frontend with no build step.
 
@@ -141,9 +141,7 @@ Just open `frontend/index.html` in a browser (double-click it, or serve it with
 any static file server). By default it points at `http://localhost:8000`
 (matching `config.json`'s default `host`/`port`) — change the "Backend URL"
 field at the bottom of the page once you deploy the backend somewhere public.
-That field is only editable when the backend's `environment` is `"test"`; in
-`"production"` it's fixed and shown read-only, based on what `GET /config`
-reports.
+That field is only editable when the backend's `testing` is `true`; when `testing` is `false` it's fixed and shown read-only, based on what GET /config reports.
 
 ## 3. Running with Docker (or Podman)
 
@@ -218,16 +216,12 @@ A few things specific to the containerized setup:
   `voices.py`'s `VOICES` list (same as the bare-metal setup) — edit
   `voices.py` and re-run `docker compose up -d --build` to pick it up.
 - **Config**: `config.json` is bind-mounted read-only into the container, so
-  you can edit `environment`, `allowed_origins`, `max_audio_minutes`, etc.
+  you can edit `testing`, `allowed_origins`, `max_audio_minutes`, etc.
   and just `docker compose restart backend` — no rebuild needed.
 - **Frontend**: `compose.yaml` includes an optional `frontend` service that
   serves `index.html` via stock `nginx:1.27-alpine` (no custom image, just a
   bind mount) at `http://localhost:8080`. Remove that service if you'd
-  rather open `index.html` directly or host it elsewhere. Either way, if
-  you set `"environment": "production"`, the frontend's Backend URL field
-  becomes fixed at whatever default is baked into `index.html` — edit that
-  default (the `<input id="backendUrl">` element's `value`) to your real,
-  publicly reachable backend address *before* deploying it that way, since
+  rather open `index.html` directly or host it elsewhere. Either way, if you set `testing: false`, the frontend's Backend URL field becomes fixed at whatever default is baked into `index.html` — edit that default (the `<input id="backendUrl">` element's `value`) to your real, publicly reachable backend address *before* deploying it that way, since
   the field can no longer be corrected from the browser.
 - **Health**: the backend's healthcheck is defined in `compose.yaml` (a
   `healthcheck:` block calling `/health` with Python's standard library —
@@ -247,7 +241,7 @@ a note to the console — it never fails to start over a bad config file.
 
 ```json
 {
-  "environment": "test",
+  "testing": true,
   "host": "localhost",
   "port": 8000,
   "allowed_origins": ["*"],
@@ -259,7 +253,7 @@ a note to the console — it never fails to start over a bad config file.
 
 | Key | Effect |
 | --- | --- |
-| `environment` | `"test"` leaves the frontend's **Backend URL** field editable, so you can point it at any backend while developing. `"production"` locks that field so end users can't repoint the frontend elsewhere. The backend exposes this (plus the fields below marked *(also in `/config`)*) via `GET /config`, which the frontend reads on load. |
+| `testing` | `true` (the default) leaves the frontend's **Backend URL** field editable, so you can point it at any backend while developing. `false` locks that field so end users can't repoint the frontend elsewhere. The backend exposes this (plus the fields below marked *(also in `/config`)*) via `GET /config`, which the frontend reads on load. |
 | `host`, `port` *(also in `/config`)* | Used by `python main.py` to start uvicorn, and match the frontend's default Backend URL (`http://localhost:8000`) out of the box. Change both together if you move the backend elsewhere, or just pass `--host`/`--port` to `uvicorn` directly. |
 | `allowed_origins` | Passed straight through to FastAPI's CORS middleware. Keep as `["*"]` for local development; set it to your real frontend origin(s) before deploying publicly. |
 | `max_audio_minutes` *(also in `/config`)* | The speaking-time cap, in minutes — see "The speaking-time limit" below. |

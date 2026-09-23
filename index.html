@@ -814,7 +814,7 @@
 
   languageSelect.addEventListener('change', updateVoiceOptions);
 
-  // --- Server config: production/test mode + fallback theme -------------------
+  // --- Server config: testing mode + fallback theme -------------------
 
   async function loadServerConfig() {
     try {
@@ -822,7 +822,7 @@
       if (!res.ok) throw new Error(`status ${res.status}`);
       const cfg = await res.json();
 
-      if (cfg.environment === 'production') {
+      if (!cfg.testing) {
         backendUrlInput.disabled = true;
         backendUrlNote.textContent = 'Fixed by the server (production mode).';
       } else {

@@ -1,5 +1,5 @@
 {
-  "environment": "test",
+  "testing": true,
   "host": "localhost",
   "port": 8000,
   "allowed_origins": ["*"],

@@ -30,7 +30,7 @@ from config import (
     ALLOWED_ORIGINS,
     CONFIG,
     DEFAULT_THEME,
-    ENVIRONMENT,
+    TESTING,
     HOST,
     MAX_INPUT_CHARS,
     PORT,
@@ -74,11 +74,11 @@ def health():
 @app.get("/config", response_model=ConfigResponse)
 def get_config():
     """Safe-to-expose subset of server config, used by the frontend to
-    decide whether the Backend URL field should be editable and to pick a
+    decide whether the Backend URL field should be editable (testing) and to pick a
     fallback theme when the browser can't tell us its color-scheme
     preference."""
     return {
-        "environment": ENVIRONMENT,
+        "testing": TESTING,
         "host": HOST,
         "port": PORT,
         "max_audio_minutes": CONFIG["max_audio_minutes"],

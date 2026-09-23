@@ -25,9 +25,10 @@ SYNTHESIS_TIMEOUT_SECONDS = 180
 CONFIG_PATH = Path(__file__).parent / "config.json"
 
 DEFAULT_CONFIG = {
-    # "test" leaves the frontend's Backend URL field editable; "production"
-    # tells the frontend to render it as fixed/uneditable.
-    "environment": "test",
+    # True (default) leaves the frontend's Backend URL field editable, so
+    # you can point it at any backend while developing. False tells the
+    # frontend to render it as fixed/uneditable (production).
+    "testing": True,
     "host": "localhost",
     "port": 8000,
     # Tighten this to your actual frontend origin before going public.
@@ -69,7 +70,7 @@ def load_config() -> dict:
 
 CONFIG = load_config()
 
-ENVIRONMENT: str = CONFIG["environment"]
+TESTING: bool = bool(CONFIG["testing"]) if not isinstance(CONFIG["testing"], str) else CONFIG["testing"].strip().lower() in ("1", "true", "yes", "on")
 HOST: str = CONFIG["host"]
 PORT: int = CONFIG["port"]
 ALLOWED_ORIGINS: list[str] = CONFIG["allowed_origins"]
